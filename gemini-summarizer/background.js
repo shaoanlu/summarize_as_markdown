@@ -26,7 +26,7 @@ async function summarizeWithGemini(request, sendResponse) {
         // Create prompt for Gemini
         const prompt = `
   Summarize the following content from ${title}.
-  Content: ${contentString.substring(0, 15000)}...
+  Content: ${contentString.substring(0, 300000)}...
   
   Provide a markdown summary with the following format:
   # Summary of "${title}"
@@ -77,15 +77,10 @@ async function summarizeWithGemini(request, sendResponse) {
 
         const summaryText = data.candidates[0].content.parts[0].text;
 
-        // Create filename from title
-        const filename = `${title.replace(/[^a-z0-9]/gi, '_').substring(0, 50)}_summary.md`;
-
-        // Instead of creating a Blob URL, send the summary text back to the popup
-        // to handle the download there
+        // Send the summary text back to the popup
         sendResponse({
             success: true,
-            summaryText: summaryText,
-            filename: filename
+            summaryText: summaryText
         });
 
     } catch (error) {

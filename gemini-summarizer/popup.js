@@ -6,6 +6,10 @@ document.addEventListener('DOMContentLoaded', function () {
     const summarySection = document.getElementById('summary-section');
     const loadingElement = document.getElementById('loading');
     const statusMessage = document.getElementById('status-message');
+    const summaryDisplay = document.getElementById('summary-display');
+    const summaryContent = document.getElementById('summary-content');
+    const copyBtn = document.getElementById('copy-btn');
+    const copyStatus = document.getElementById('copy-status');
 
     // Check if API key is saved
     chrome.storage.local.get(['geminiApiKey'], function (result) {
@@ -30,6 +34,22 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
+    // Copy to clipboard
+    copyBtn.addEventListener('click', function () {
+        const text = summaryContent.textContent;
+        navigator.clipboard.writeText(text)
+            .then(() => {
+                copyStatus.textContent = 'Copied!';
+                setTimeout(() => {
+                    copyStatus.textContent = '';
+                }, 2000);
+            })
+            .catch(err => {
+                copyStatus.textContent = 'Failed to copy';
+                console.error('Copy failed: ', err);
+            });
+    });
+
     // Summarize current tab
     summarizeBtn.addEventListener('click', function () {
         chrome.storage.local.get(['geminiApiKey'], function (result) {
@@ -39,6 +59,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 return;
             }
 
+            // Hide previous summary and show loading
+            summaryDisplay.style.display = 'none';
             loadingElement.style.display = 'block';
             statusMessage.textContent = '';
             statusMessage.className = '';
@@ -71,10 +93,33 @@ document.addEventListener('DOMContentLoaded', function () {
                         loadingElement.style.display = 'none';
 
                         if (response.success) {
-                            // If successful and we have summary text, download it
+                            // Display the summary
                             if (response.summaryText) {
-                                downloadSummary(response.summaryText, response.filename);
-                                showStatus('Summary created! File downloaded.', 'success');
+                                // Convert markdown to HTML (basic conversion)
+                                const formattedText = response.summaryText
+                                    .replace(/^# (.*$)/gm, '<h1>$1</h1>')
+                                    .replace(/^## (.*$)/gm, '<h2>$1</h2>')
+                                    .replace(/^\* (.*$)/gm, '<li>$1</li>')
+                                    .replace(/^(\* .*$)/gm, '<ul>$1</ul>')
+                                    .replace(/<\/ul>\s*<ul>/g, '')
+                                    .replace(/\n\n/g, '<br><br>');
+
+                                summaryContent.innerHTML = formattedText;
+                                summaryDisplay.style.display = 'block';
+
+                                // Auto-copy to clipboard
+                                navigator.clipboard.writeText(response.summaryText)
+                                    .then(() => {
+                                        copyStatus.textContent = 'Auto-copied to clipboard!';
+                                        setTimeout(() => {
+                                            copyStatus.textContent = '';
+                                        }, 3000);
+                                    })
+                                    .catch(err => {
+                                        console.error('Auto-copy failed: ', err);
+                                    });
+
+                                showStatus('Summary generated successfully!', 'success');
                             } else {
                                 showStatus('Summary created but no content received.', 'error');
                             }
@@ -86,27 +131,6 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         });
     });
-
-    // Function to download the summary as a file
-    function downloadSummary(content, filename) {
-        // Create a blob for the content
-        const blob = new Blob([content], { type: 'text/markdown' });
-
-        // Create a download link
-        const downloadLink = document.createElement('a');
-        downloadLink.href = URL.createObjectURL(blob);
-        downloadLink.download = filename;
-
-        // Append to the document, click it, then remove it
-        document.body.appendChild(downloadLink);
-        downloadLink.click();
-
-        // Clean up
-        setTimeout(() => {
-            URL.revokeObjectURL(downloadLink.href);
-            document.body.removeChild(downloadLink);
-        }, 100);
-    }
 
     function showStatus(message, type) {
         statusMessage.textContent = message;
