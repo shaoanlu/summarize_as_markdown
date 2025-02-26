@@ -33,3 +33,4 @@ Modify endpoint in `background.js` from `gemini-2.0-flash` to a [available model
 ## Ackowledgement
 - Motivated by recent article [If it is worth keeping, save it in Markdown](https://p.migdal.pl/blog/2025/02/markdown-saves) by Piotr Migdał.
 - Inspired by Alchain花生's YouTube video using Cursor to create a Chrome extension [The World's Most Powerful AI Coding Tool—Cursor: Everyone Can Be a Programmer](https://youtu.be/R9JIi2zMNHA?feature=shared).
+- Icons are from [FREEPIK](https://www.freepik.com/icon/ai-technology_18951459#fromView=search&page=1&position=51&uuid=dcdae7b1-eda1-480e-ac3e-f26de30b7119)
