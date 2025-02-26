@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Gemini Tab Summarizer</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div class="container">
+        <h1>Gemini Tab Summarizer</h1>
+
+        <div id="api-key-section">
+            <label for="gemini-api-key">Gemini API Key:</label>
+            <input type="password" id="gemini-api-key" placeholder="Enter your Gemini API key">
+            <button id="save-api-key">Save</button>
+            <p class="info">Get your API key from <a href="https://ai.google.dev/" target="_blank">Google AI Studio</a>
+            </p>
+        </div>
+
+        <div id="summary-section" style="display: none;">
+            <button id="summarize-btn">Summarize Current Tab</button>
+            <div id="loading" style="display: none;">
+                <p>Generating summary...</p>
+                <div class="spinner"></div>
+            </div>
+            <div id="status-message"></div>
+        </div>
+    </div>
+    <script src="popup.js"></script>
+</body>
+
+</html>
