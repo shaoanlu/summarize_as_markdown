@@ -32,7 +32,7 @@ Modify endpoint in `background.js` from `gemini-2.0-flash` to a [available model
 ## Integration with Notion
 1. Create a [internal integration secrets](https://www.notion.so/profile/integrations) in Notion
 2. Create a new [table database](https://www.notion.com/help/guides/creating-a-database) in Notion. Add a `text` field named "Title", an `URL` field named "URL", and a `multi-select` field named "Tags" to it. (otherwise there will be errors when adding adding summaries to Notion)
-3. Give [databaase permission](https://developers.notion.com/docs/create-a-notion-integration#give-your-integration-page-permissions) to the integration created in step 1.
+3. Give [database permission](https://developers.notion.com/docs/create-a-notion-integration#give-your-integration-page-permissions) to the integration created in step 1.
 4. In the chrome extension, set API key (the integration secret) and database ID (`https://www.notion.so/{workspace_name}/{database_id}?v={view_id}` of the page link, [ref.](https://developers.notion.com/docs/working-with-databases#adding-pages-to-a-database)).
 
 
