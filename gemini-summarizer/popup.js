@@ -11,12 +11,37 @@ document.addEventListener('DOMContentLoaded', function () {
     const copyBtn = document.getElementById('copy-btn');
     const copyStatus = document.getElementById('copy-status');
 
-    // Check if API key is saved
-    chrome.storage.local.get(['geminiApiKey'], function (result) {
+    // Notion related elements
+    const notionKeySection = document.getElementById('notion-key-section');
+    const notionApiKeyInput = document.getElementById('notion-api-key');
+    const saveNotionApiKeyBtn = document.getElementById('save-notion-api-key');
+    const saveNotionDatabaseIdBtn = document.getElementById('save-notion-database-id');
+    const notionDatabaseIdInput = document.getElementById('notion-database-id');
+    const saveToNotionBtn = document.getElementById('save-to-notion-btn');
+    const notionSetup = document.getElementById('notion-setup');
+    const setupNotionBtn = document.getElementById('setup-notion-btn');
+
+    let currentSummary = "";
+
+    // Check if API keys are saved
+    chrome.storage.local.get(['geminiApiKey', 'notionApiKey', 'notionDatabaseId'], function (result) {
         if (result.geminiApiKey) {
             apiKeyInput.value = result.geminiApiKey;
             apiKeySection.style.display = 'none';
             summarySection.style.display = 'block';
+        }
+
+        // Check Notion credentials
+        if (result.notionApiKey && result.notionDatabaseId) {
+            notionApiKeyInput.value = result.notionApiKey;
+            notionDatabaseIdInput.value = result.notionDatabaseId;
+            notionSetup.style.display = 'none';
+            notionKeySection.style.display = 'none';
+        } else {
+            saveToNotionBtn.disabled = true;
+            // Make Notion setup visible by default if credentials aren't saved
+            notionSetup.style.display = 'block';
+            notionKeySection.style.display = 'block';
         }
     });
 
@@ -34,6 +59,36 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
+    // Setup Notion button
+    setupNotionBtn.addEventListener('click', function () {
+        notionKeySection.style.display = 'block';
+        summarySection.style.display = 'none';
+    });
+
+    // Save Notion API Key
+    saveNotionApiKeyBtn.addEventListener('click', function () {
+        const notionApiKey = notionApiKeyInput.value.trim();
+        if (notionApiKey) {
+            chrome.storage.local.set({ notionApiKey: notionApiKey }, function () {
+                showStatus('Notion API Key saved!', 'success');
+            });
+        } else {
+            showStatus('Please enter a valid Notion API Key.', 'error');
+        }
+    });
+
+    // Save Notion Database ID
+    saveNotionDatabaseIdBtn.addEventListener('click', function () {
+        const notionDatabaseId = notionDatabaseIdInput.value.trim();
+        if (notionDatabaseId) {
+            chrome.storage.local.set({ notionDatabaseId: notionDatabaseId }, function () {
+                showStatus('Notion Database ID saved!', 'success');
+            });
+        } else {
+            showStatus('Please enter a valid Notion Database ID.', 'error');
+        }
+    });
+
     // Copy to clipboard
     copyBtn.addEventListener('click', function () {
         const text = summaryContent.textContent;
@@ -48,6 +103,58 @@ document.addEventListener('DOMContentLoaded', function () {
                 copyStatus.textContent = 'Failed to copy';
                 console.error('Copy failed: ', err);
             });
+    });
+
+    // Save to Notion
+    saveToNotionBtn.addEventListener('click', function () {
+        saveToNotionBtn.disabled = true;
+        saveToNotionBtn.textContent = 'Saving...';
+
+        // Get the current tab title for the page title
+        chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+            const currentTab = tabs[0];
+
+            chrome.storage.local.get(['notionApiKey', 'notionDatabaseId'], function (result) {
+                if (!result.notionApiKey || !result.notionDatabaseId) {
+                    notionSetup.style.display = 'block';
+                    saveToNotionBtn.disabled = false;
+                    saveToNotionBtn.textContent = 'Save to Notion';
+                    showStatus('Notion credentials not found', 'error');
+                    return;
+                }
+
+                // Extract title and tags from the summary
+                let title = currentTab.title;
+                let tags = [];
+                let summaryText = currentSummary;
+
+                // Try to extract tags from the summary
+                const tagsMatch = summaryText.match(/Suggested Tags: \[(.*?)\]/);
+                if (tagsMatch && tagsMatch[1]) {
+                    tags = tagsMatch[1].split(',').map(tag => tag.trim());
+                }
+
+                // Send to background script to make the Notion API call
+                chrome.runtime.sendMessage({
+                    action: 'saveToNotion',
+                    title: title,
+                    content: summaryText,
+                    tags: tags,
+                    url: currentTab.url,
+                    notionApiKey: result.notionApiKey,
+                    notionDatabaseId: result.notionDatabaseId
+                }, function (response) {
+                    saveToNotionBtn.disabled = false;
+                    saveToNotionBtn.textContent = 'Save to Notion';
+
+                    if (response && response.success) {
+                        showStatus('Saved to Notion successfully!', 'success');
+                    } else {
+                        showStatus('Error saving to Notion: ' + (response ? response.error : 'Unknown error'), 'error');
+                    }
+                });
+            });
+        });
     });
 
     // Summarize current tab
@@ -95,6 +202,20 @@ document.addEventListener('DOMContentLoaded', function () {
                         if (response.success) {
                             // Display the summary
                             if (response.summaryText) {
+                                // Save the raw summary text
+                                currentSummary = response.summaryText;
+
+                                // Check if user has Notion credentials
+                                chrome.storage.local.get(['notionApiKey', 'notionDatabaseId'], function (notionResult) {
+                                    if (notionResult.notionApiKey && notionResult.notionDatabaseId) {
+                                        notionSetup.style.display = 'none';
+                                        saveToNotionBtn.disabled = false;
+                                    } else {
+                                        notionSetup.style.display = 'block';
+                                        saveToNotionBtn.disabled = true;
+                                    }
+                                });
+
                                 // Convert markdown to HTML (basic conversion)
                                 const formattedText = response.summaryText
                                     .replace(/^# (.*$)/gm, '<h1>$1</h1>')

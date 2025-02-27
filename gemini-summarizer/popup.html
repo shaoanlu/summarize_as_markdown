@@ -18,6 +18,23 @@
             </p>
         </div>
 
+        <div id="notion-key-section">
+            <label for="notion-api-key">Notion API Key:</label>
+            <div class="input-group">
+                <input type="password" id="notion-api-key" placeholder="Enter your Notion API key">
+                <button id="save-notion-api-key">Save</button>
+            </div>
+
+            <label for="notion-database-id">Notion Database ID:</label>
+            <div class="input-group">
+                <input type="text" id="notion-database-id" placeholder="Enter your Notion database ID">
+                <button id="save-notion-database-id">Save</button>
+            </div>
+
+            <p class="info">Get your API key from <a href="https://www.notion.so/my-integrations" target="_blank">Notion
+                    Integrations</a></p>
+        </div>
+
         <div id="summary-section" style="display: none;">
             <button id="summarize-btn">Summarize Current Tab</button>
             <div id="loading" style="display: none;">
@@ -35,7 +52,14 @@
                 <div class="summary-content-wrapper">
                     <div id="summary-content" class="summary-content"></div>
                 </div>
-                <button id="copy-btn">Copy to Clipboard</button>
+                <div class="button-row">
+                    <button id="copy-btn">Copy to Clipboard</button>
+                    <button id="save-to-notion-btn">Save to Notion</button>
+                </div>
+                <div id="notion-setup" style="display: none;">
+                    <p>To save to Notion, you need to configure your Notion API key.</p>
+                    <button id="setup-notion-btn">Setup Notion</button>
+                </div>
             </div>
         </div>
     </div>

@@ -57,6 +57,11 @@ button:hover {
     background-color: #0d62d1;
 }
 
+button:disabled {
+    background-color: #a1c0ea;
+    cursor: not-allowed;
+}
+
 #summarize-btn {
     margin-top: 0;
     font-size: 15px;
@@ -166,6 +171,59 @@ a:hover {
     padding-left: 20px;
 }
 
-#copy-btn {
+/* Button row styling */
+.button-row {
+    display: flex;
+    gap: 10px;
+}
+
+.button-row button {
+    flex: 1;
     margin-top: 10px;
+}
+
+.input-group {
+    display: flex;
+    align-items: center;
+    /* Ensures vertical alignment */
+    gap: 6px;
+}
+
+.input-group input {
+    flex: 1;
+    padding: 8px;
+    margin-top: 10px;
+    box-sizing: border-box;
+}
+
+.input-group button {
+    width: 60px;
+    padding: 8px;
+    font-size: 14px;
+    margin-top: 0;
+}
+
+#save-to-notion-btn {
+    background-color: #37352f;
+}
+
+#save-to-notion-btn:hover {
+    background-color: #2e2c25;
+}
+
+#save-to-notion-btn:disabled {
+    background-color: #c3c2bf;
+}
+
+#notion-setup {
+    margin-top: 10px;
+    padding: 10px;
+    background-color: #f1f1f0;
+    border-radius: 4px;
+    font-size: 13px;
+}
+
+#setup-notion-btn {
+    background-color: #37352f;
+    margin-top: 5px;
 }
