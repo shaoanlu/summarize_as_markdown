@@ -28,7 +28,7 @@ async function summarizeWithGemini(request, sendResponse) {
 
         // Create prompt for Gemini
         const prompt = `
-  Summarize content, within 2000 charaters the following, from ${title}.
+  Summarize content, within 4000 charaters, the following from ${title}.
   Content: ${contentString.substring(0, 300000)}...
   
   Provide a markdown summary with the following format:
@@ -40,7 +40,7 @@ async function summarizeWithGemini(request, sendResponse) {
   * Suggested Tags: [Include 3-5 relevant topic tags]
   
   ## Summary
-  [Provide a comprehensive summary of the content in 1-2 paragraphs]
+  [Provide a comprehensive summary of the content in 2-4 paragraphs]
   
   ## Key Points
   [List 3-5 key points from the content]
@@ -394,16 +394,20 @@ async function saveToNotion(request, sendResponse) {
     try {
         const { title, content, tags, url, notionApiKey, notionDatabaseId } = request;
 
-        // Truncate content to be less than 2000 characters
-        const truncatedContent = content.length > 2000
-            ? content.substring(0, 1997) + "..."
-            : content;
-
         // Convert markdown content to Notion blocks
-        const blocks = convertMarkdownToNotionBlocks(truncatedContent);
+        const blocks = convertMarkdownToNotionBlocks(content);
 
-        // Call Notion API to create a new page
-        const response = await fetch('https://api.notion.com/v1/pages', {
+        // Notion API has a limit of blocks per request
+        // Split blocks into chunks (100 blocks per chunk is a safe limit)
+        const blockChunks = [];
+        const CHUNK_SIZE = 1000;
+
+        for (let i = 0; i < blocks.length; i += CHUNK_SIZE) {
+            blockChunks.push(blocks.slice(i, i + CHUNK_SIZE));
+        }
+
+        // Call Notion API to create a new page with the first chunk of blocks
+        const createResponse = await fetch('https://api.notion.com/v1/pages', {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${notionApiKey}`,
@@ -434,13 +438,13 @@ async function saveToNotion(request, sendResponse) {
                         multi_select: tags.map(tag => ({ name: tag }))
                     }
                 },
-                // Add the content to the page
-                children: blocks
+                // Add the first chunk of content blocks to the page
+                children: blockChunks[0]
             })
         });
 
-        if (!response.ok) {
-            const errorData = await response.json();
+        if (!createResponse.ok) {
+            const errorData = await createResponse.json();
             sendResponse({
                 success: false,
                 error: `Notion API Error: ${errorData.message || 'Unknown Notion API error'}`
@@ -448,12 +452,42 @@ async function saveToNotion(request, sendResponse) {
             return;
         }
 
-        const data = await response.json();
+        const pageData = await createResponse.json();
+        const pageId = pageData.id;
+
+        // If there are more chunks, append them to the page
+        if (blockChunks.length > 1) {
+            for (let i = 1; i < blockChunks.length; i++) {
+                const appendResponse = await fetch(`https://api.notion.com/v1/blocks/${pageId}/children`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Authorization': `Bearer ${notionApiKey}`,
+                        'Content-Type': 'application/json',
+                        'Notion-Version': '2022-06-28'
+                    },
+                    body: JSON.stringify({
+                        children: blockChunks[i]
+                    })
+                });
+
+                if (!appendResponse.ok) {
+                    // If one chunk fails, we'll still return success but with a warning
+                    const errorData = await appendResponse.json();
+                    sendResponse({
+                        success: true,
+                        partialContent: true,
+                        pageId: pageId,
+                        warning: `Some content couldn't be added: ${errorData.message || 'Unknown Notion API error'}`
+                    });
+                    return;
+                }
+            }
+        }
 
         // Send success response back to popup
         sendResponse({
             success: true,
-            pageId: data.id
+            pageId: pageId
         });
 
     } catch (error) {
