@@ -40,14 +40,17 @@ This Chrome extension uses Google's Gemini API to summarize the content of the c
 
 To save summaries directly to Notion, you'll need to set up an integration and provide your API key and database ID (that are saved in your browser's local storage).
 
-1. **Create a Notion Integration:**  Create a [internal integration secrets](https://www.notion.so/profile/integrations) in Notion
-2. **Create a Notion Database:** Create a new [table database](https://www.notion.com/help/guides/creating-a-database) in Notion. This database *must* have the following properties (columns):
+1. Create a [internal integration secrets](https://www.notion.so/profile/integrations) in Notion
+2. Create a new [table database](https://www.notion.com/help/guides/creating-a-database) in Notion. This database *must* have the following properties (columns):
     * `Title` (Text)
     * `URL` (URL)
     * `Tags` (Multi-select)
-3. **Connect Integration to Database:** Give [database permission](https://developers.notion.com/docs/create-a-notion-integration#give-your-integration-page-permissions) to the integration created in step 1.
-4. **Configure Extension:** In the chrome extension, set API key (the integration secret) and database ID (`https://www.notion.so/{workspace_name}/{database_id}?v={view_id}` of the page link, [ref.](https://developers.notion.com/docs/working-with-databases#adding-pages-to-a-database)).
+3. Connect integration to database by giving [database permission](https://developers.notion.com/docs/create-a-notion-integration#give-your-integration-page-permissions)** to the integration created in step 1.
+4. Configure extension by setting API key (the integration secret) and database ID (`https://www.notion.so/{workspace_name}/{database_id}?v={view_id}` of the page link, [ref.](https://developers.notion.com/docs/working-with-databases#adding-pages-to-a-database)).
 
+<p align="center">
+  <img src="summarize_as_markdown_notion_integration.png" width=640>
+</p>
 
 ## Changing the Gemini Model
 
@@ -71,9 +74,7 @@ gemini-summarizer/
 ├── content.js
 ├── styles.css
 └── images/
-└── icon16.png
-└── icon48.png
-└── icon128.png
+    └── icon*.png (128x128)
 ```
 
 ## Troubleshooting
