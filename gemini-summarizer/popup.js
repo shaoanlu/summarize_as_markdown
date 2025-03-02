@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const copyStatus = document.getElementById('copy-status');
     const recapContentDiv = document.getElementById('recap-content'); // Get recap content div
     const weeklyRecapDisplay = document.getElementById('weekly-recap-display'); //Get the recap display div
+    const recapCopyStatus = document.getElementById('recap-copy-status');
 
     // Notion related elements
     const notionKeySection = document.getElementById('notion-key-section');
@@ -281,7 +282,7 @@ document.addEventListener('DOMContentLoaded', function () {
             summaryDisplay.style.display = 'none'; // Hide regular summary
             weeklyRecapDisplay.style.display = 'none'; // Hide any previous recap
 
-            statusMessage.textContent = 'Generating weekly recap...';
+            statusMessage.textContent = 'Fetching past week\'s summaries...';
             statusMessage.className = '';
 
             try {
@@ -289,6 +290,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 const pagesWithContent = await getAllPagesWithContent(notionApiKey, notionDatabaseId);
 
                 // 3. Generate the weekly recap using Gemini API
+                statusMessage.textContent = 'Generating weekly recap...';
                 const recapText = await generateWeeklyRecap(pagesWithContent, geminiApiKey);
 
                 // 4. Display the response in the EXISTING popup
@@ -301,6 +303,18 @@ document.addEventListener('DOMContentLoaded', function () {
                     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // Bold text
                     .replace(/\n\n/g, '<br><br>')
                     .replace(/\n/g, '<br>');
+
+                // Auto-copy to clipboard
+                navigator.clipboard.writeText(recapText)
+                    .then(() => {
+                        recapCopyStatus.textContent = 'Auto-copied to clipboard!';
+                        setTimeout(() => {
+                            recapCopyStatus.textContent = '';
+                        }, 3000);
+                    })
+                    .catch(err => {
+                        console.error('Auto-copy failed: ', err);
+                    });
 
                 recapContentDiv.innerHTML = formattedRecap; // Set the content
                 weeklyRecapDisplay.style.display = 'block'; // Show the recap display
