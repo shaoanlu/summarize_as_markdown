@@ -4,7 +4,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const apiKeyInput = document.getElementById('gemini-api-key');
     const saveApiKeyBtn = document.getElementById('save-api-key');
     const summarizeBtn = document.getElementById('summarize-btn');
-    const weeklyRecapBtn = document.getElementById('weekly-recap-btn'); // Get the weekly recap button
+    const weeklyRecapBtn = document.getElementById('weekly-recap-btn');
     const apiKeySection = document.getElementById('api-key-section');
     const summarySection = document.getElementById('summary-section');
     const loadingElement = document.getElementById('loading');
@@ -13,8 +13,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const summaryContent = document.getElementById('summary-content');
     const copyBtn = document.getElementById('copy-btn');
     const copyStatus = document.getElementById('copy-status');
-    const recapContentDiv = document.getElementById('recap-content'); // Get recap content div
-    const weeklyRecapDisplay = document.getElementById('weekly-recap-display'); //Get the recap display div
+    const recapContentDiv = document.getElementById('recap-content');
+    const weeklyRecapDisplay = document.getElementById('weekly-recap-display');
     const recapCopyStatus = document.getElementById('recap-copy-status');
 
     // Notion related elements
@@ -29,27 +29,50 @@ document.addEventListener('DOMContentLoaded', function () {
 
     let currentSummary = "";
 
-    // Check if API keys are saved
-    chrome.storage.local.get(['geminiApiKey', 'notionApiKey', 'notionDatabaseId'], function (result) {
-        if (result.geminiApiKey) {
-            apiKeyInput.value = result.geminiApiKey;
-            apiKeySection.style.display = 'none';
-            summarySection.style.display = 'block';
-        }
+    // Load saved API keys and display them in the input fields
+    function loadSavedCredentials() {
+        chrome.storage.local.get(['geminiApiKey', 'notionApiKey', 'notionDatabaseId'], function (result) {
+            // Always populate input fields with saved values if they exist
+            if (result.geminiApiKey) {
+                apiKeyInput.value = result.geminiApiKey;
+                apiKeySection.style.display = 'none';
+                summarySection.style.display = 'block';
+            } else {
+                apiKeyInput.value = '';
+                apiKeySection.style.display = 'block';
+                summarySection.style.display = 'none';
+            }
 
-        // Check Notion credentials
-        if (result.notionApiKey && result.notionDatabaseId) {
-            notionApiKeyInput.value = result.notionApiKey;
-            notionDatabaseIdInput.value = result.notionDatabaseId;
-            notionSetup.style.display = 'none';
-            notionKeySection.style.display = 'none';
-        } else {
-            saveToNotionBtn.disabled = true;
-            // Make Notion setup visible by default if credentials aren't saved
-            notionSetup.style.display = 'block';
-            notionKeySection.style.display = 'block';
-        }
-    });
+            // Always populate Notion input fields with saved values
+            if (result.notionApiKey) {
+                notionApiKeyInput.value = result.notionApiKey;
+            } else {
+                notionApiKeyInput.value = '';
+            }
+
+            if (result.notionDatabaseId) {
+                notionDatabaseIdInput.value = result.notionDatabaseId;
+            } else {
+                notionDatabaseIdInput.value = '';
+            }
+
+            // Update Notion section visibility and button state
+            if (result.notionApiKey && result.notionDatabaseId) {
+                saveToNotionBtn.disabled = false;
+                // Only hide notion setup if we're not actively configuring it
+                if (notionKeySection.style.display !== 'block') {
+                    notionSetup.style.display = 'none';
+                    notionKeySection.style.display = 'none';
+                }
+            } else {
+                saveToNotionBtn.disabled = true;
+                notionSetup.style.display = 'block';
+            }
+        });
+    }
+
+    // Initial load of saved credentials
+    loadSavedCredentials();
 
     // Save API key
     saveApiKeyBtn.addEventListener('click', function () {
@@ -59,6 +82,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 apiKeySection.style.display = 'none';
                 summarySection.style.display = 'block';
                 showStatus('API key saved successfully!', 'success');
+                loadSavedCredentials(); // Reload credentials to update UI
             });
         } else {
             showStatus('Please enter a valid API key', 'error');
@@ -68,7 +92,8 @@ document.addEventListener('DOMContentLoaded', function () {
     // Setup Notion button
     setupNotionBtn.addEventListener('click', function () {
         notionKeySection.style.display = 'block';
-        summarySection.style.display = 'none';
+        // Load current values into form fields
+        loadSavedCredentials();
     });
 
     // Save Notion API Key
@@ -77,6 +102,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (notionApiKey) {
             chrome.storage.local.set({ notionApiKey: notionApiKey }, function () {
                 showStatus('Notion API Key saved!', 'success');
+                loadSavedCredentials(); // Reload credentials to update UI
             });
         } else {
             showStatus('Please enter a valid Notion API Key.', 'error');
@@ -89,6 +115,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (notionDatabaseId) {
             chrome.storage.local.set({ notionDatabaseId: notionDatabaseId }, function () {
                 showStatus('Notion Database ID saved!', 'success');
+                loadSavedCredentials(); // Reload credentials to update UI
             });
         } else {
             showStatus('Please enter a valid Notion Database ID.', 'error');
@@ -170,6 +197,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 apiKeySection.style.display = 'block';
                 summarySection.style.display = 'none';
                 weeklyRecapDisplay.style.display = 'none'; // Hide any previous recap
+                loadSavedCredentials(); // Make sure input fields are populated
                 return;
             }
 
@@ -213,16 +241,8 @@ document.addEventListener('DOMContentLoaded', function () {
                                 // Save the raw summary text
                                 currentSummary = response.summaryText;
 
-                                // Check if user has Notion credentials
-                                chrome.storage.local.get(['notionApiKey', 'notionDatabaseId'], function (notionResult) {
-                                    if (notionResult.notionApiKey && notionResult.notionDatabaseId) {
-                                        notionSetup.style.display = 'none';
-                                        saveToNotionBtn.disabled = false;
-                                    } else {
-                                        notionSetup.style.display = 'block';
-                                        saveToNotionBtn.disabled = true;
-                                    }
-                                });
+                                // Update Notion button state based on credentials
+                                loadSavedCredentials();
 
                                 // Convert markdown to HTML (basic conversion)
                                 const formattedText = response.summaryText
@@ -249,8 +269,6 @@ document.addEventListener('DOMContentLoaded', function () {
                                     .catch(err => {
                                         console.error('Auto-copy failed: ', err);
                                     });
-
-                                // showStatus('Summary generated successfully!', 'success');
                             } else {
                                 showStatus('Summary created but no content received.', 'error');
                             }
@@ -270,6 +288,14 @@ document.addEventListener('DOMContentLoaded', function () {
         chrome.storage.local.get(['geminiApiKey', 'notionApiKey', 'notionDatabaseId'], async function (result) {
             if (!result.notionApiKey || !result.notionDatabaseId || !result.geminiApiKey) {
                 showStatus('Please ensure Notion API Key, Notion Database ID, and Gemini API Key are set.', 'error');
+                if (!result.geminiApiKey) {
+                    apiKeySection.style.display = 'block';
+                    summarySection.style.display = 'none';
+                } else if (!result.notionApiKey || !result.notionDatabaseId) {
+                    notionSetup.style.display = 'block';
+                    notionKeySection.style.display = 'block';
+                }
+                loadSavedCredentials(); // Make sure input fields are populated
                 return;
             }
 
@@ -295,7 +321,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 // 4. Display the response in the EXISTING popup
 
-                // Format the recap text (same as before)
+                // Format the recap text
                 const formattedRecap = recapText
                     .replace(/^# (.*$)/gm, '<h1>$1</h1>')
                     .replace(/^## (.*$)/gm, '<h2>$1</h2>')
