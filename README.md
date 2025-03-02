@@ -63,7 +63,7 @@ The extension defaults to the `gemini-2.0-flash` model.  To use a different mode
     ```javascript
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
     ```
-3.  Change `gemini-2.0-flash` to the desired [model name](https://ai.google.dev/gemini-api/docs/models/gemini). Ensure the model you select supports the `generateContent` method.
+3.  Change `gemini-2.0-flash` or `gemini-2.0-pro-exp-02-05` to the desired [model name](https://ai.google.dev/gemini-api/docs/models/gemini). Ensure the model you select supports the `generateContent` method.
 
 
 ## Files Structure
