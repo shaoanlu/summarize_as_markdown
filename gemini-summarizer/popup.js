@@ -227,10 +227,10 @@ document.addEventListener('DOMContentLoaded', function () {
                                 const formattedText = response.summaryText
                                     .replace(/^# (.*$)/gm, '<h1>$1</h1>')
                                     .replace(/^## (.*$)/gm, '<h2>$1</h2>')
+                                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // Bold text
                                     .replace(/^\* (.*$)/gm, '<li>$1</li>')
                                     .replace(/^(\* .*$)/gm, '<ul>$1</ul>')
                                     .replace(/<\/ul>\s*<ul>/g, '')
-                                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // Bold text
                                     .replace(/\n\n/g, '<br><br>');
 
                                 summaryContent.innerHTML = formattedText;
@@ -298,12 +298,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     .replace(/^# (.*$)/gm, '<h1>$1</h1>')
                     .replace(/^## (.*$)/gm, '<h2>$1</h2>')
                     .replace(/^### (.*$)/gm, '<h3>$1</h3>')
-                    .replace(/^\* (.*$)/gm, '<li>$1</li>') //  list items
-                    .replace(/^(\* .*$)/gm, '<ul>$1</ul>')  // Wrap in <ul>
-                    .replace(/<\/ul>\s*<ul>/g, '')          // Remove extra <ul> tags
-                    .replace(/^\d+\. (.*$)/gm, '<li>$1</li>')//numbered list
                     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // Bold text
-                    .replace(/\n\n/g, '<br><br>');
+                    .replace(/\n\n/g, '<br><br>')
+                    .replace(/\n/g, '<br>');
 
                 recapContentDiv.innerHTML = formattedRecap; // Set the content
                 weeklyRecapDisplay.style.display = 'block'; // Show the recap display
