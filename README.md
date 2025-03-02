@@ -82,7 +82,7 @@ gemini-summarizer/
 ## Troubleshooting
 
 *   **"No summary generated"**: This could mean the Gemini API key is invalid, the API is unavailable, or no content was found on the page.
-*   **"Error saving to Notion"**: Check your Notion API key, database ID, and that the database has the required properties (`Title`, `URL`, `Tags`).
+*   **"Error saving to Notion"**: Check your Notion API key, database ID, and that the database has the required properties (`Title`, `URL`, `Tags`, `Date`).
 *   **Notion setup button doesn't work**: Make sure that the fields are not empty.
 
 ## Acknowledgements
