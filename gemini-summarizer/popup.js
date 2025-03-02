@@ -1,5 +1,4 @@
 import { getAllPagesWithContent, generateWeeklyRecap } from './weeklyRecap.js';
-import { showWeeklyRecapPopup } from './weeklyRecapPopup.js';
 
 document.addEventListener('DOMContentLoaded', function () {
     const apiKeyInput = document.getElementById('gemini-api-key');
@@ -14,6 +13,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const summaryContent = document.getElementById('summary-content');
     const copyBtn = document.getElementById('copy-btn');
     const copyStatus = document.getElementById('copy-status');
+    const recapContentDiv = document.getElementById('recap-content'); // Get recap content div
+    const weeklyRecapDisplay = document.getElementById('weekly-recap-display'); //Get the recap display div
 
     // Notion related elements
     const notionKeySection = document.getElementById('notion-key-section');
@@ -173,7 +174,7 @@ document.addEventListener('DOMContentLoaded', function () {
             // Hide previous summary and show loading
             summaryDisplay.style.display = 'none';
             loadingElement.style.display = 'block';
-            statusMessage.textContent = '';
+            statusMessage.textContent = 'Generating summary...';
             statusMessage.className = '';
 
             // Get current tab information
@@ -231,6 +232,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
                                 summaryContent.innerHTML = formattedText;
                                 summaryDisplay.style.display = 'block';
+                                statusMessage.textContent = '';
 
                                 // Auto-copy to clipboard
                                 navigator.clipboard.writeText(response.summaryText)
@@ -257,6 +259,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
+
     // Weekly Recap button click handler
     weeklyRecapBtn.addEventListener('click', async function () {
         // 1. Get Notion API key and Database ID
@@ -272,6 +275,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
             // Show loading indicator
             loadingElement.style.display = 'block';
+            summaryDisplay.style.display = 'none'; // Hide regular summary
+            weeklyRecapDisplay.style.display = 'none'; // Hide any previous recap
+
             statusMessage.textContent = 'Generating weekly recap...';
 
             try {
@@ -281,8 +287,24 @@ document.addEventListener('DOMContentLoaded', function () {
                 // 3. Generate the weekly recap using Gemini API
                 const recapText = await generateWeeklyRecap(pagesWithContent, geminiApiKey);
 
-                // 4. Display the response in a new popup window
-                showWeeklyRecapPopup(recapText);
+                // 4. Display the response in the EXISTING popup
+
+                // Format the recap text (same as before)
+                const formattedRecap = recapText
+                    .replace(/^# (.*$)/gm, '<h1>$1</h1>')
+                    .replace(/^## (.*$)/gm, '<h2>$1</h2>')
+                    .replace(/^### (.*$)/gm, '<h3>$1</h3>')
+                    .replace(/^\* (.*$)/gm, '<li>$1</li>') //  list items
+                    .replace(/^(\* .*$)/gm, '<ul>$1</ul>')  // Wrap in <ul>
+                    .replace(/<\/ul>\s*<ul>/g, '')          // Remove extra <ul> tags
+                    .replace(/^\d+\. (.*$)/gm, '<li>$1</li>')//numbered list
+                    .replace(/\n\n/g, '<br><br>');
+
+                recapContentDiv.innerHTML = formattedRecap; // Set the content
+                weeklyRecapDisplay.style.display = 'block'; // Show the recap display
+                statusMessage.textContent = ''; // Clear status message
+
+
             } catch (error) {
                 showStatus('Error generating weekly recap: ' + error.message, 'error');
             } finally {
@@ -291,7 +313,6 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     });
-
 
     function showStatus(message, type) {
         statusMessage.textContent = message;

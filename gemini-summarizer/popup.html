@@ -40,7 +40,6 @@
             <!-- New button for Weekly Recap -->
             <button id="weekly-recap-btn" class="secondary-btn">Generate Weekly Recap</button>
             <div id="loading" style="display: none;">
-                <p>Generating summary...</p>
                 <div class="spinner"></div>
             </div>
             <div id="status-message"></div>
@@ -61,6 +60,17 @@
                 <div id="notion-setup" style="display: none;">
                     <p>To save to Notion, you need to configure your Notion API key.</p>
                     <button id="setup-notion-btn">Setup Notion</button>
+                </div>
+            </div>
+
+            <!-- Weekly Recap display area -->
+            <div id="weekly-recap-display" style="display: none;">
+                <div class="summary-header">
+                    <h2>Weekly Recap</h2>
+                    <div class="recap-copy-status" id="recap-copy-status"></div>
+                </div>
+                <div class="summary-content-wrapper">
+                    <div id="recap-content" class="summary-content"></div>
                 </div>
             </div>
         </div>
