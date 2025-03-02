@@ -70,6 +70,7 @@ The extension defaults to the `gemini-2.0-flash` model.  To use a different mode
 gemini-summarizer/
 ├── manifest.json
 ├── background.js
+├── notionUtils.js
 ├── popup.html
 ├── popup.js
 ├── content.js
