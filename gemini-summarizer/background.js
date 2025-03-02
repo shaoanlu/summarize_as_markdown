@@ -394,6 +394,9 @@ async function saveToNotion(request, sendResponse) {
     try {
         const { title, content, tags, url, notionApiKey, notionDatabaseId } = request;
 
+        // Get current date in ISO format (YYYY-MM-DD)
+        const currentDate = new Date().toISOString().split('T')[0];
+
         // Convert markdown content to Notion blocks
         const blocks = convertMarkdownToNotionBlocks(content);
 
@@ -436,6 +439,12 @@ async function saveToNotion(request, sendResponse) {
                     // Add Tags if your database has a multi_select field named "Tags"
                     "Tags": {
                         multi_select: tags.map(tag => ({ name: tag }))
+                    },
+                    // Add Date property
+                    "Date": {
+                        date: {
+                            start: currentDate
+                        }
                     }
                 },
                 // Add the first chunk of content blocks to the page

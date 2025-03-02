@@ -131,7 +131,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 // Try to extract tags from the summary
                 const tagsMatch = summaryText.match(/Suggested Tags: (.*?)(\n|$)/);
                 if (tagsMatch && tagsMatch[1]) {
-                    tags = tagsMatch[1].replace(/[\[\]]/g, '').split(',').map(tag => tag.trim());
+                    tags = tagsMatch[1].replace(/[\[\]`"'*#@<>{}]/g, '').split(',').map(tag => tag.trim());
                 }
 
                 // Send to background script to make the Notion API call

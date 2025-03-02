@@ -42,9 +42,10 @@ To save summaries directly to Notion, you'll need to set up an integration and p
 
 1. Create a [internal integration secrets](https://www.notion.so/profile/integrations) in Notion
 2. Create a new [table database](https://www.notion.com/help/guides/creating-a-database) in Notion. This database *must* have the following properties (columns):
-    * `Title` (Text)
+    * `Title` (Plain Text)
     * `URL` (URL)
     * `Tags` (Multi-select)
+    * `Date` (Date)
 3. Connect integration to database by giving [database permission](https://developers.notion.com/docs/create-a-notion-integration#give-your-integration-page-permissions)** to the integration created in step 1.
 4. Configure extension by setting API key (the integration secret) and database ID (`https://www.notion.so/{workspace_name}/{database_id}?v={view_id}` of the page link, [ref.](https://developers.notion.com/docs/working-with-databases#adding-pages-to-a-database)).
 
