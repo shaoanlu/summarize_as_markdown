@@ -168,11 +168,13 @@ document.addEventListener('DOMContentLoaded', function () {
             if (!result.geminiApiKey) {
                 apiKeySection.style.display = 'block';
                 summarySection.style.display = 'none';
+                weeklyRecapDisplay.style.display = 'none'; // Hide any previous recap
                 return;
             }
 
             // Hide previous summary and show loading
             summaryDisplay.style.display = 'none';
+            weeklyRecapDisplay.style.display = 'none'; // Hide any previous recap
             loadingElement.style.display = 'block';
             statusMessage.textContent = 'Generating summary...';
             statusMessage.className = '';
@@ -228,6 +230,7 @@ document.addEventListener('DOMContentLoaded', function () {
                                     .replace(/^\* (.*$)/gm, '<li>$1</li>')
                                     .replace(/^(\* .*$)/gm, '<ul>$1</ul>')
                                     .replace(/<\/ul>\s*<ul>/g, '')
+                                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // Bold text
                                     .replace(/\n\n/g, '<br><br>');
 
                                 summaryContent.innerHTML = formattedText;
@@ -246,7 +249,7 @@ document.addEventListener('DOMContentLoaded', function () {
                                         console.error('Auto-copy failed: ', err);
                                     });
 
-                                showStatus('Summary generated successfully!', 'success');
+                                // showStatus('Summary generated successfully!', 'success');
                             } else {
                                 showStatus('Summary created but no content received.', 'error');
                             }
@@ -279,6 +282,7 @@ document.addEventListener('DOMContentLoaded', function () {
             weeklyRecapDisplay.style.display = 'none'; // Hide any previous recap
 
             statusMessage.textContent = 'Generating weekly recap...';
+            statusMessage.className = '';
 
             try {
                 // 2. Retrieve pages from the past week with content
@@ -298,6 +302,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     .replace(/^(\* .*$)/gm, '<ul>$1</ul>')  // Wrap in <ul>
                     .replace(/<\/ul>\s*<ul>/g, '')          // Remove extra <ul> tags
                     .replace(/^\d+\. (.*$)/gm, '<li>$1</li>')//numbered list
+                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // Bold text
                     .replace(/\n\n/g, '<br><br>');
 
                 recapContentDiv.innerHTML = formattedRecap; // Set the content
