@@ -1,4 +1,232 @@
-/* Add to the end of styles.css */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    width: 380px;
+    padding: 10px;
+    background-color: #f5f5f5;
+}
+
+.container {
+    background-color: white;
+    border-radius: 8px;
+    padding: 15px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+h1 {
+    font-size: 18px;
+    color: #1a73e8;
+    margin-top: 0;
+    margin-bottom: 15px;
+    text-align: center;
+}
+
+h2 {
+    font-size: 16px;
+    margin: 0;
+    color: #1a73e8;
+}
+
+label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 500;
+}
+
+input {
+    width: 100%;
+    padding: 8px;
+    margin-bottom: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+button {
+    background-color: #1a73e8;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+    margin-top: 5px;
+    width: 100%;
+}
+
+button:hover {
+    background-color: #0d62d1;
+}
+
+button:disabled {
+    background-color: #a1c0ea;
+    cursor: not-allowed;
+}
+
+#summarize-btn {
+    margin-top: 0;
+    font-size: 15px;
+    padding: 10px;
+}
+
+.info {
+    font-size: 12px;
+    color: #666;
+    margin-top: 5px;
+}
+
+a {
+    color: #1a73e8;
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+.spinner {
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #1a73e8;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    animation: spin 1s linear infinite;
+    margin: 10px auto;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+#status-message {
+    margin-top: 10px;
+    padding: 5px;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.success {
+    background-color: #e6f4ea;
+    color: #137333;
+}
+
+.error {
+    background-color: #fce8e6;
+    color: #c5221f;
+}
+
+/* Summary display styling */
+#summary-display {
+    margin-top: 15px;
+    border-top: 1px solid #eee;
+    padding-top: 15px;
+}
+
+.summary-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.copy-status {
+    font-size: 12px;
+    color: #137333;
+}
+
+.summary-content-wrapper {
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid #eee;
+    border-radius: 4px;
+    padding: 10px;
+    margin-bottom: 10px;
+    background-color: #f9f9f9;
+}
+
+.summary-content {
+    font-size: 14px;
+    line-height: 1.4;
+    white-space: pre-wrap;
+}
+
+.summary-content h1 {
+    font-size: 16px;
+    text-align: left;
+    margin-bottom: 10px;
+}
+
+.summary-content h2 {
+    font-size: 14px;
+    margin: 10px 0 5px 0;
+}
+
+.summary-content ul {
+    margin: 5px 0;
+    padding-left: 20px;
+}
+
+/* Button row styling */
+.button-row {
+    display: flex;
+    gap: 10px;
+}
+
+.button-row button {
+    flex: 1;
+    margin-top: 10px;
+}
+
+.input-group {
+    display: flex;
+    align-items: center;
+    /* Ensures vertical alignment */
+    gap: 6px;
+}
+
+.input-group input {
+    flex: 1;
+    padding: 8px;
+    margin-top: 10px;
+    box-sizing: border-box;
+}
+
+.input-group button {
+    width: 60px;
+    padding: 8px;
+    font-size: 14px;
+    margin-top: 0;
+}
+
+#save-to-notion-btn {
+    background-color: #37352f;
+}
+
+#save-to-notion-btn:hover {
+    background-color: #2e2c25;
+}
+
+#save-to-notion-btn:disabled {
+    background-color: #c3c2bf;
+}
+
+#notion-setup {
+    margin-top: 10px;
+    padding: 10px;
+    background-color: #f1f1f0;
+    border-radius: 4px;
+    font-size: 13px;
+}
+
+#setup-notion-btn {
+    background-color: #37352f;
+    margin-top: 5px;
+}
 
 .secondary-btn {
     background-color: #34a853;

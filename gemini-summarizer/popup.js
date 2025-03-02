@@ -1,7 +1,12 @@
+// File: gemini-summarizer/popup.js
+import { getAllPagesWithContent, generateWeeklyRecap } from './weeklyRecap.js';
+import { showWeeklyRecapPopup } from './weeklyRecapPopup.js';
+
 document.addEventListener('DOMContentLoaded', function () {
     const apiKeyInput = document.getElementById('gemini-api-key');
     const saveApiKeyBtn = document.getElementById('save-api-key');
     const summarizeBtn = document.getElementById('summarize-btn');
+    const weeklyRecapBtn = document.getElementById('weekly-recap-btn'); // Get the weekly recap button
     const apiKeySection = document.getElementById('api-key-section');
     const summarySection = document.getElementById('summary-section');
     const loadingElement = document.getElementById('loading');
@@ -252,6 +257,42 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         });
     });
+
+    // Weekly Recap button click handler
+    weeklyRecapBtn.addEventListener('click', async function () {
+        // 1. Get Notion API key and Database ID
+        chrome.storage.local.get(['geminiApiKey', 'notionApiKey', 'notionDatabaseId'], async function (result) {
+            if (!result.notionApiKey || !result.notionDatabaseId || !result.geminiApiKey) {
+                showStatus('Please ensure Notion API Key, Notion Database ID, and Gemini API Key are set.', 'error');
+                return;
+            }
+
+            const notionApiKey = result.notionApiKey;
+            const notionDatabaseId = result.notionDatabaseId;
+            const geminiApiKey = result.geminiApiKey;
+
+            // Show loading indicator
+            loadingElement.style.display = 'block';
+            statusMessage.textContent = 'Generating weekly recap...';
+
+            try {
+                // 2. Retrieve pages from the past week with content
+                const pagesWithContent = await getAllPagesWithContent(notionApiKey, notionDatabaseId);
+
+                // 3. Generate the weekly recap using Gemini API
+                const recapText = await generateWeeklyRecap(pagesWithContent, geminiApiKey);
+
+                // 4. Display the response in a new popup window
+                showWeeklyRecapPopup(recapText);
+            } catch (error) {
+                showStatus('Error generating weekly recap: ' + error.message, 'error');
+            } finally {
+                // Hide loading indicator
+                loadingElement.style.display = 'none';
+            }
+        });
+    });
+
 
     function showStatus(message, type) {
         statusMessage.textContent = message;

@@ -174,7 +174,7 @@ async function generateWeeklyRecap(pagesWithContent, apiKey) {
 
         // Create prompt for Gemini
         const prompt = `
-  Analyze my saved tweets and web articles from this past week. Organize the content into meaningful categories such as career, health, relationships, skills, or any emergent themes. Keep it less than 500 words
+  Analyze my saved tweets and web articles from this past week. Organize the content into meaningful categories such as career, health, relationships, skills, or any emergent themes. Keep it less than 1000 words
   
   For each category:
   
