@@ -172,26 +172,27 @@ async function generateWeeklyRecap(pagesWithContent, apiKey) {
 
         // Create prompt for Gemini
         const prompt = `
-  Analyze the saved summaries from this past week. Organize the content into meaningful categories such as career, health, relationships, skills, or any emergent themes.
-  Keep it less than 500 words and go straight to the point.
+  Analyze the saved summaries of web articles from this past week. Organize the content into meaningful categories such as career, health, relationships, skills, or any emergent themes.
+  Keep it less than 500 words and go straight to the point without beginning with sth. like 'Okay, here's an analysis of your web article summaries, ...'.
   
-  First, synthesize everything into a cohesive 'weekly learning narrative' that highlights my overarching themes and key takeaways.
+  First, extract the main themes and key insights from the content.
 
   Then, for each category:
   Extract 1-3 key actionable insights from the content, focusing on takeaways that could inform decisions or actions.
   Identify connections between different pieces of content, even if they seem unrelated, to uncover deeper themes or evolving interests.
   Suggest 1-2 small, concrete action steps I could take in the coming week based on the insights.
   Compare this week's insights with previous weeks to track recurring themes, progress, or shifts in focus.
-  Provide at least one contrarian or alternative perspective on a key idea to challenge my assumptions.
+  Provide at least one contrarian or alternative perspective on a key idea to challenge the assumptions.
 
-  Finally, propose innovative and creative ideas that combine concepts/approaches/insights from them.
+  Finally, synthesize everything into a cohesive 'weekly learning narrative' that highlights the overarching themes and key takeaways
+  In addition, propose innovative and creative ideas that combine concepts/approaches/insights from them.
   
   Content from the past week:
   
   ${combinedContent}`;
 
         // Call Gemini API
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-pro-exp-02-05:generateContent?key=${apiKey}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
