@@ -1,5 +1,3 @@
-// weeklyRecap.js
-
 // Function to get pages from the past week from Notion database
 async function getNotionPagesFromPastWeek(notionApiKey, notionDatabaseId) {
     try {

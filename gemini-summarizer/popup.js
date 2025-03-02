@@ -1,4 +1,3 @@
-// File: gemini-summarizer/popup.js
 import { getAllPagesWithContent, generateWeeklyRecap } from './weeklyRecap.js';
 import { showWeeklyRecapPopup } from './weeklyRecapPopup.js';
 

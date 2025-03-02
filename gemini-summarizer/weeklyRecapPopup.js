@@ -1,5 +1,3 @@
-// weeklyRecapPopup.js
-
 // Function to create and display the weekly recap popup
 function showWeeklyRecapPopup(recapContent) {
     // Create popup container
