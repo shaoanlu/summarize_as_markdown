@@ -4,9 +4,9 @@ name: CI
 # Trigger the workflow on push and pull requests to main branch
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main, develop ]
   pull_request:
-    branches: [ main, master ]
+    branches: [ main, develop ]
 
 # Define the jobs to run
 jobs:
