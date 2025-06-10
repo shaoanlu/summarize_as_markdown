@@ -16,8 +16,6 @@ document.addEventListener('DOMContentLoaded', function () {
     const recapContentDiv = document.getElementById('recap-content');
     const weeklyRecapDisplay = document.getElementById('weekly-recap-display');
     const recapCopyStatus = document.getElementById('recap-copy-status');
-
-    // Notion related elements
     const notionKeySection = document.getElementById('notion-key-section');
     const notionApiKeyInput = document.getElementById('notion-api-key');
     const saveNotionApiKeyBtn = document.getElementById('save-notion-api-key');
@@ -29,10 +27,29 @@ document.addEventListener('DOMContentLoaded', function () {
 
     let currentSummary = "";
 
-    // Load saved API keys and display them in the input fields
+    /**
+     * Dynamically adjusts the popup width based on content length for better readability.
+     * @param {number} [contentLength=0] - The length of the summary or recap text.
+     */
+    function updatePopupSize(contentLength = 0) {
+        const body = document.body;
+        let targetWidth;
+
+        if (contentLength <= 0) {
+            targetWidth = 420; // Default/collapsed width
+        } else if (contentLength < 1200) {
+            targetWidth = 450; // Small summary
+        } else if (contentLength < 2500) {
+            targetWidth = 700; // Medium summary
+        } else {
+            targetWidth = 980; // Large summary, respects Chrome's max-width
+        }
+        body.style.width = targetWidth + 'px';
+    }
+
     function loadSavedCredentials() {
+        // ... (this function remains unchanged)
         chrome.storage.local.get(['geminiApiKey', 'notionApiKey', 'notionDatabaseId'], function (result) {
-            // Always populate input fields with saved values if they exist
             if (result.geminiApiKey) {
                 apiKeyInput.value = result.geminiApiKey;
                 apiKeySection.style.display = 'none';
@@ -42,24 +59,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 apiKeySection.style.display = 'block';
                 summarySection.style.display = 'none';
             }
-
-            // Always populate Notion input fields with saved values
-            if (result.notionApiKey) {
-                notionApiKeyInput.value = result.notionApiKey;
-            } else {
-                notionApiKeyInput.value = '';
-            }
-
-            if (result.notionDatabaseId) {
-                notionDatabaseIdInput.value = result.notionDatabaseId;
-            } else {
-                notionDatabaseIdInput.value = '';
-            }
-
-            // Update Notion section visibility and button state
+            if (result.notionApiKey) notionApiKeyInput.value = result.notionApiKey;
+            else notionApiKeyInput.value = '';
+            if (result.notionDatabaseId) notionDatabaseIdInput.value = result.notionDatabaseId;
+            else notionDatabaseIdInput.value = '';
             if (result.notionApiKey && result.notionDatabaseId) {
                 saveToNotionBtn.disabled = false;
-                // Only hide notion setup if we're not actively configuring it
                 if (notionKeySection.style.display !== 'block') {
                     notionSetup.style.display = 'none';
                     notionKeySection.style.display = 'none';
@@ -70,6 +75,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     }
+
 
     // Initial load of saved credentials
     loadSavedCredentials();
@@ -190,29 +196,26 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-    // Summarize current tab
     summarizeBtn.addEventListener('click', function () {
         chrome.storage.local.get(['geminiApiKey'], function (result) {
             if (!result.geminiApiKey) {
                 apiKeySection.style.display = 'block';
                 summarySection.style.display = 'none';
-                weeklyRecapDisplay.style.display = 'none'; // Hide any previous recap
-                loadSavedCredentials(); // Make sure input fields are populated
+                weeklyRecapDisplay.classList.add('collapsed');
+                loadSavedCredentials();
                 return;
             }
 
-            // Hide previous summary and show loading
-            summaryDisplay.style.display = 'none';
-            weeklyRecapDisplay.style.display = 'none'; // Hide any previous recap
+            // Collapse sections and reset width before generating
+            updatePopupSize(); // Reset to default width
+            summaryDisplay.classList.add('collapsed');
+            weeklyRecapDisplay.classList.add('collapsed');
             loadingElement.style.display = 'block';
             statusMessage.textContent = 'Generating summary...';
             statusMessage.className = '';
 
-            // Get current tab information
             chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
                 const currentTab = tabs[0];
-
-                // Extract content from the current tab
                 chrome.scripting.executeScript({
                     target: { tabId: currentTab.id },
                     function: extractPageContent
@@ -224,8 +227,6 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
 
                     const pageData = results[0].result;
-
-                    // Send data to background script for Gemini API processing
                     chrome.runtime.sendMessage({
                         action: 'summarize',
                         url: currentTab.url,
@@ -235,45 +236,32 @@ document.addEventListener('DOMContentLoaded', function () {
                     }, function (response) {
                         loadingElement.style.display = 'none';
 
-                        if (response.success) {
-                            // Display the summary
-                            if (response.summaryText) {
-                                // Save the raw summary text
-                                currentSummary = response.summaryText;
+                        if (response.success && response.summaryText) {
+                            currentSummary = response.summaryText;
+                            loadSavedCredentials();
 
-                                // Update Notion button state based on credentials
-                                loadSavedCredentials();
+                            const formattedText = response.summaryText
+                                .replace(/^# (.*$)/gm, '<h1>$1</h1>')
+                                .replace(/^## (.*$)/gm, '<h2>$1</h2>')
+                                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                                .replace(/^\* (.*$)/gm, '<li>$1</li>')
+                                .replace(/^(?:\*|\-)\s/gm, '<ul><li>')
+                                .replace(/<\/li>\n/g, '</li></ul>\n<ul>')
+                                .replace(/\n\n/g, '<br><br>');
 
-                                // Convert markdown to HTML (basic conversion)
-                                const formattedText = response.summaryText
-                                    .replace(/^# (.*$)/gm, '<h1>$1</h1>')
-                                    .replace(/^## (.*$)/gm, '<h2>$1</h2>')
-                                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // Bold text
-                                    .replace(/^\* (.*$)/gm, '<li>$1</li>')
-                                    .replace(/^(\* .*$)/gm, '<ul>$1</ul>')
-                                    .replace(/<\/ul>\s*<ul>/g, '')
-                                    .replace(/\n\n/g, '<br><br>');
+                            summaryContent.innerHTML = formattedText;
+                            statusMessage.textContent = '';
 
-                                summaryContent.innerHTML = formattedText;
-                                summaryDisplay.style.display = 'block';
-                                statusMessage.textContent = '';
+                            // Expand popup width and height
+                            updatePopupSize(response.summaryText.length);
+                            summaryDisplay.classList.remove('collapsed');
 
-                                // Auto-copy to clipboard
-                                navigator.clipboard.writeText(response.summaryText)
-                                    .then(() => {
-                                        copyStatus.textContent = 'Auto-copied to clipboard!';
-                                        setTimeout(() => {
-                                            copyStatus.textContent = '';
-                                        }, 3000);
-                                    })
-                                    .catch(err => {
-                                        console.error('Auto-copy failed: ', err);
-                                    });
-                            } else {
-                                showStatus('Summary created but no content received.', 'error');
-                            }
+                            navigator.clipboard.writeText(response.summaryText).then(() => {
+                                copyStatus.textContent = 'Auto-copied to clipboard!';
+                                setTimeout(() => { copyStatus.textContent = ''; }, 3000);
+                            }).catch(err => console.error('Auto-copy failed: ', err));
                         } else {
-                            showStatus('Error: ' + response.error, 'error');
+                            showStatus('Error: ' + (response ? response.error : "Unknown error"), 'error');
                         }
                     });
                 });
@@ -281,10 +269,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-
-    // Weekly Recap button click handler
     weeklyRecapBtn.addEventListener('click', async function () {
-        // 1. Get Notion API key and Database ID
         chrome.storage.local.get(['geminiApiKey', 'notionApiKey', 'notionDatabaseId'], async function (result) {
             if (!result.notionApiKey || !result.notionDatabaseId || !result.geminiApiKey) {
                 showStatus('Please ensure Notion API Key, Notion Database ID, and Gemini API Key are set.', 'error');
@@ -295,62 +280,48 @@ document.addEventListener('DOMContentLoaded', function () {
                     notionSetup.style.display = 'block';
                     notionKeySection.style.display = 'block';
                 }
-                loadSavedCredentials(); // Make sure input fields are populated
+                loadSavedCredentials();
                 return;
             }
 
-            const notionApiKey = result.notionApiKey;
-            const notionDatabaseId = result.notionDatabaseId;
-            const geminiApiKey = result.geminiApiKey;
+            const { notionApiKey, notionDatabaseId, geminiApiKey } = result;
 
-            // Show loading indicator
+            // Collapse sections and reset width before generating
+            updatePopupSize(); // Reset to default width
+            summaryDisplay.classList.add('collapsed');
+            weeklyRecapDisplay.classList.add('collapsed');
             loadingElement.style.display = 'block';
-            summaryDisplay.style.display = 'none'; // Hide regular summary
-            weeklyRecapDisplay.style.display = 'none'; // Hide any previous recap
-
             statusMessage.textContent = 'Fetching past week\'s summaries...';
             statusMessage.className = '';
 
             try {
-                // 2. Retrieve pages from the past week with content
                 const pagesWithContent = await getAllPagesWithContent(notionApiKey, notionDatabaseId);
-
-                // 3. Generate the weekly recap using Gemini API
                 statusMessage.textContent = 'Generating weekly recap...';
                 const recapText = await generateWeeklyRecap(pagesWithContent, geminiApiKey);
 
-                // 4. Display the response in the EXISTING popup
-
-                // Format the recap text
                 const formattedRecap = recapText
                     .replace(/^# (.*$)/gm, '<h1>$1</h1>')
                     .replace(/^## (.*$)/gm, '<h2>$1</h2>')
                     .replace(/^### (.*$)/gm, '<h3>$1</h3>')
-                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // Bold text
+                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
                     .replace(/\n\n/g, '<br><br>')
                     .replace(/\n/g, '<br>');
 
-                // Auto-copy to clipboard
-                navigator.clipboard.writeText(recapText)
-                    .then(() => {
-                        recapCopyStatus.textContent = 'Auto-copied to clipboard!';
-                        setTimeout(() => {
-                            recapCopyStatus.textContent = '';
-                        }, 3000);
-                    })
-                    .catch(err => {
-                        console.error('Auto-copy failed: ', err);
-                    });
+                navigator.clipboard.writeText(recapText).then(() => {
+                    recapCopyStatus.textContent = 'Auto-copied to clipboard!';
+                    setTimeout(() => { recapCopyStatus.textContent = ''; }, 3000);
+                }).catch(err => console.error('Auto-copy failed: ', err));
 
-                recapContentDiv.innerHTML = formattedRecap; // Set the content
-                weeklyRecapDisplay.style.display = 'block'; // Show the recap display
-                statusMessage.textContent = ''; // Clear status message
+                recapContentDiv.innerHTML = formattedRecap;
+                statusMessage.textContent = '';
 
+                // Expand popup width and height
+                updatePopupSize(recapText.length);
+                weeklyRecapDisplay.classList.remove('collapsed');
 
             } catch (error) {
                 showStatus('Error generating weekly recap: ' + error.message, 'error');
             } finally {
-                // Hide loading indicator
                 loadingElement.style.display = 'none';
             }
         });
@@ -360,17 +331,15 @@ document.addEventListener('DOMContentLoaded', function () {
         statusMessage.textContent = message;
         statusMessage.className = type;
     }
+
 });
 
-// Function to extract content from the page
+// Function to extract content from the page (no changes needed here)
 function extractPageContent() {
-    // Check if it's a PDF (simplified approach)
     const isPDF = document.contentType === 'application/pdf' ||
         window.location.href.toLowerCase().endsWith('.pdf');
 
     if (isPDF) {
-        // For PDFs, we'd need a more sophisticated approach
-        // This is a simplified placeholder
         return {
             title: document.title,
             content: "This is a PDF document. PDF extraction requires more complex handling.",
@@ -379,28 +348,20 @@ function extractPageContent() {
         };
     }
 
-    // For regular webpages
-    // Get main content, prioritizing article content
     let content = '';
     const article = document.querySelector('article');
 
     if (article) {
         content = article.innerText;
     } else {
-        // Fallback to main content or body
         const main = document.querySelector('main') || document.body;
-
-        // Get all paragraphs and headings
         const textElements = main.querySelectorAll('p, h1, h2, h3, h4, h5, h6');
         content = Array.from(textElements).map(el => el.innerText).join('\n\n');
-
-        // If still no content, get all text
         if (!content.trim()) {
             content = main.innerText;
         }
     }
 
-    // Try to find author/source information
     let sourceInfo = '';
     const possibleSourceElements = document.querySelectorAll('[rel="author"], .author, .byline, [itemprop="author"]');
     if (possibleSourceElements.length > 0) {
@@ -410,13 +371,11 @@ function extractPageContent() {
             .join(', ');
     }
 
-    // If no specific author found, try to use site name/publication
     if (!sourceInfo) {
         const siteName = document.querySelector('[property="og:site_name"]');
         if (siteName && siteName.getAttribute('content')) {
             sourceInfo = siteName.getAttribute('content');
         } else {
-            // Extract domain as fallback source
             const domain = new URL(window.location.href).hostname;
             sourceInfo = domain.replace('www.', '');
         }
