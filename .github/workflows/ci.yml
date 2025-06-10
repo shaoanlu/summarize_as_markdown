@@ -118,22 +118,102 @@ jobs:
           echo "✅ No obvious hardcoded API keys found"
         fi
     
-    # Package extension for testing
+    # Generate build info
+    - name: Generate build info
+      run: |
+        echo "Generating build information..."
+        
+        # Create build info file
+        cat > build-info.json << EOF
+        {
+          "build_time": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+          "commit_sha": "${{ github.sha }}",
+          "branch": "${{ github.ref_name }}",
+          "workflow_run": "${{ github.run_number }}",
+          "actor": "${{ github.actor }}",
+          "repository": "${{ github.repository }}"
+        }
+        EOF
+        
+        echo "✅ Build info generated:"
+        cat build-info.json
+    
+    # Package extension with build artifacts
     - name: Package extension
       run: |
-        echo "Creating extension package..."
-        cd gemini-summarizer
-        zip -r ../extension-package.zip . -x "*.git*" "node_modules/*"
+        echo "Creating extension package with build artifacts..."
+        
+        # Create build directory
+        mkdir -p build
+        
+        # Copy extension files to build directory
+        cp -r gemini-summarizer/* build/
+        
+        # Add build info to the package
+        cp build-info.json build/
+        
+        # Create a README for the build
+        cat > build/BUILD_README.md << EOF
+        # Chrome Extension Build
+        
+        **Build Information:**
+        - Build Time: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+        - Commit: ${{ github.sha }}
+        - Branch: ${{ github.ref_name }}
+        - Workflow Run: ${{ github.run_number }}
+        - Built by: ${{ github.actor }}
+        
+        **Installation:**
+        1. Open Chrome and go to \`chrome://extensions/\`
+        2. Enable "Developer mode" (toggle in top-right)
+        3. Click "Load unpacked" and select this folder
+        
+        **Files included:**
+        - All extension source files
+        - build-info.json (build metadata)
+        - This README
+        EOF
+        
+        # Create the zip package
+        cd build
+        zip -r ../chrome-extension-v${{ github.run_number }}.zip . -x "*.git*" "node_modules/*"
         cd ..
+        
         echo "✅ Extension packaged successfully"
-        ls -la extension-package.zip
+        ls -la chrome-extension-v${{ github.run_number }}.zip
+        
+        # Also create a source-only package (without build artifacts)
+        cd gemini-summarizer
+        zip -r ../chrome-extension-source.zip . -x "*.git*" "node_modules/*"
+        cd ..
+        
+        echo "✅ Source package created"
+        ls -la chrome-extension-source.zip
     
-    # Upload the packaged extension as an artifact
-    - name: Upload extension package
+    # Upload the build artifacts
+    - name: Upload extension package with build info
       uses: actions/upload-artifact@v4
       with:
-        name: chrome-extension-package
-        path: extension-package.zip
+        name: chrome-extension-v${{ github.run_number }}
+        path: |
+          chrome-extension-v${{ github.run_number }}.zip
+          build-info.json
+        retention-days: 90
+    
+    # Upload source-only package
+    - name: Upload source package
+      uses: actions/upload-artifact@v4
+      with:
+        name: chrome-extension-source
+        path: chrome-extension-source.zip
+        retention-days: 30
+    
+    # Upload unpackaged build directory for easy testing
+    - name: Upload unpacked extension
+      uses: actions/upload-artifact@v4
+      with:
+        name: chrome-extension-unpacked
+        path: build/
         retention-days: 30
 
   # Optional: Additional job for running tests (if you add them later)
