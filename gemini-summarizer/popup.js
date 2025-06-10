@@ -44,16 +44,12 @@ document.addEventListener('DOMContentLoaded', function () {
         body.style.width = targetWidth + 'px';
     }
 
+    // REMOVED: The mousemove event listener that caused high GPU usage.
+    /*
     document.addEventListener('mousemove', (e) => {
-        const container = document.querySelector('.glass-container');
-        if (!container) return;
-        const rect = container.getBoundingClientRect();
-        const x = (e.clientX - rect.left) / rect.width;
-        const y = (e.clientY - rect.top) / rect.height;
-        const tiltX = (y - 0.5) * 4;
-        const tiltY = (x - 0.5) * -4;
-        container.style.transform = `perspective(1000px) rotateX(${tiltX}deg) rotateY(${tiltY}deg)`;
+        // This code was removed as it forces constant re-renders and causes very high GPU load.
     });
+    */
 
     // --- Core Logic ---
 
@@ -83,19 +79,16 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // Initial load of saved credentials
     loadSavedCredentials();
 
     // Save API key
     saveApiKeyBtn.addEventListener('click', function () { const apiKey = apiKeyInput.value.trim(); if (apiKey) { chrome.storage.local.set({ geminiApiKey: apiKey }, () => { showStatus('API key saved!', 'success'); loadSavedCredentials(); }); }});
 
-    // Setup Notion button
     setupNotionBtn.addEventListener('click', function () {
         notionKeySection.classList.toggle('collapsed');
-        loadSavedCredentials(); // Re-populate fields
+        loadSavedCredentials();
     });
 
-    // Save Notion API Key
     saveNotionApiKeyBtn.addEventListener('click', function () {
         const notionApiKey = notionApiKeyInput.value.trim();
         if (notionApiKey) {
@@ -106,7 +99,6 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    // Save Notion Database ID
     saveNotionDatabaseIdBtn.addEventListener('click', function () {
         const notionDatabaseId = notionDatabaseIdInput.value.trim();
         if (notionDatabaseId) {
@@ -115,6 +107,43 @@ document.addEventListener('DOMContentLoaded', function () {
                 chrome.storage.local.get(['notionApiKey'], (res) => updateNotionButtonState(res.notionApiKey, notionDatabaseId));
             });
         }
+    });
+    
+    summarizeBtn.addEventListener('click', function () {
+        chrome.storage.local.get(['geminiApiKey'], function (result) {
+            if (!result.geminiApiKey) { loadSavedCredentials(); return; }
+            updatePopupSize();
+            summaryDisplay.classList.add('collapsed');
+            weeklyRecapDisplay.classList.add('collapsed');
+            notionKeySection.classList.add('collapsed');
+            loadingElement.style.display = 'block';
+            statusMessage.textContent = '';
+
+            chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+                chrome.scripting.executeScript({ target: { tabId: tabs[0].id }, function: extractPageContent }, 
+                (results) => {
+                    if (chrome.runtime.lastError || !results || !results[0]) {
+                        showStatus('Error accessing page content.', 'error'); loadingElement.style.display = 'none'; return;
+                    }
+                    chrome.runtime.sendMessage({ action: 'summarize', url: tabs[0].url, title: tabs[0].title, content: results[0].result, apiKey: result.geminiApiKey }, 
+                    (response) => {
+                        loadingElement.style.display = 'none';
+                        if (response.success && response.summaryText) {
+                            currentSummary = response.summaryText;
+                            summaryContent.innerHTML = formatMarkdown(response.summaryText);
+                            updatePopupSize(response.summaryText.length);
+                            summaryDisplay.classList.remove('collapsed');
+                            navigator.clipboard.writeText(response.summaryText).then(() => {
+                                copyStatus.textContent = 'Auto-copied!';
+                                setTimeout(() => { copyStatus.textContent = ''; }, 3000);
+                            });
+                        } else {
+                            showStatus('Error: ' + response.error, 'error');
+                        }
+                    });
+                });
+            });
+        });
     });
 
     // Copy to clipboard
@@ -167,45 +196,6 @@ document.addEventListener('DOMContentLoaded', function () {
                     } else {
                         showStatus('Error saving to Notion: ' + (response ? response.error : 'Unknown error'), 'error');
                     }
-                });
-            });
-        });
-    });
-
-    summarizeBtn.addEventListener('click', function () {
-        chrome.storage.local.get(['geminiApiKey'], function (result) {
-            if (!result.geminiApiKey) {
-                loadSavedCredentials(); return;
-            }
-            updatePopupSize();
-            summaryDisplay.classList.add('collapsed');
-            weeklyRecapDisplay.classList.add('collapsed');
-            notionKeySection.classList.add('collapsed');
-            loadingElement.style.display = 'block';
-            statusMessage.textContent = '';
-
-            chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-                chrome.scripting.executeScript({ target: { tabId: tabs[0].id }, function: extractPageContent }, 
-                (results) => {
-                    if (chrome.runtime.lastError || !results || !results[0]) {
-                        showStatus('Error accessing page content.', 'error'); loadingElement.style.display = 'none'; return;
-                    }
-                    chrome.runtime.sendMessage({ action: 'summarize', url: tabs[0].url, title: tabs[0].title, content: results[0].result, apiKey: result.geminiApiKey }, 
-                    (response) => {
-                        loadingElement.style.display = 'none';
-                        if (response.success && response.summaryText) {
-                            currentSummary = response.summaryText;
-                            summaryContent.innerHTML = formatMarkdown(response.summaryText);
-                            updatePopupSize(response.summaryText.length);
-                            summaryDisplay.classList.remove('collapsed');
-                            navigator.clipboard.writeText(response.summaryText).then(() => {
-                                copyStatus.textContent = 'Auto-copied!';
-                                setTimeout(() => { copyStatus.textContent = ''; }, 3000);
-                            });
-                        } else {
-                            showStatus('Error: ' + response.error, 'error');
-                        }
-                    });
                 });
             });
         });
