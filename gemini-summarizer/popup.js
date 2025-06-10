@@ -1,6 +1,10 @@
 import { getAllPagesWithContent, generateWeeklyRecap } from './weeklyRecap.js';
+import { encryption } from './encryption.js';
 
-document.addEventListener('DOMContentLoaded', function () {
+document.addEventListener('DOMContentLoaded', async function () {
+    // Initialize encryption first
+    await encryption.init();
+    
     const apiKeyInput = document.getElementById('gemini-api-key');
     const saveApiKeyBtn = document.getElementById('save-api-key');
     const summarizeBtn = document.getElementById('summarize-btn');
@@ -47,23 +51,51 @@ document.addEventListener('DOMContentLoaded', function () {
         body.style.width = targetWidth + 'px';
     }
 
-    function loadSavedCredentials() {
-        // ... (this function remains unchanged)
-        chrome.storage.local.get(['geminiApiKey', 'notionApiKey', 'notionDatabaseId'], function (result) {
-            if (result.geminiApiKey) {
-                apiKeyInput.value = result.geminiApiKey;
+    async function loadSavedCredentials() {
+        try {
+            // Use encrypted storage for sensitive data
+            const geminiApiKey = await encryption.secureGet('geminiApiKey');
+            const notionApiKey = await encryption.secureGet('notionApiKey');
+            const notionDatabaseId = await encryption.secureGet('notionDatabaseId');
+
+            // Check for legacy unencrypted data and migrate if needed
+            if (!geminiApiKey) {
+                const migrated = await encryption.migrateKey('geminiApiKey');
+                if (migrated) {
+                    apiKeyInput.value = migrated;
+                }
+            } else {
+                apiKeyInput.value = geminiApiKey;
+            }
+
+            if (!notionApiKey) {
+                const migrated = await encryption.migrateKey('notionApiKey');
+                if (migrated) {
+                    notionApiKeyInput.value = migrated;
+                }
+            } else {
+                notionApiKeyInput.value = notionApiKey;
+            }
+
+            if (!notionDatabaseId) {
+                const migrated = await encryption.migrateKey('notionDatabaseId');
+                if (migrated) {
+                    notionDatabaseIdInput.value = migrated;
+                }
+            } else {
+                notionDatabaseIdInput.value = notionDatabaseId;
+            }
+
+            // Update UI based on available credentials
+            if (geminiApiKey || apiKeyInput.value) {
                 apiKeySection.style.display = 'none';
                 summarySection.style.display = 'block';
             } else {
-                apiKeyInput.value = '';
                 apiKeySection.style.display = 'block';
                 summarySection.style.display = 'none';
             }
-            if (result.notionApiKey) notionApiKeyInput.value = result.notionApiKey;
-            else notionApiKeyInput.value = '';
-            if (result.notionDatabaseId) notionDatabaseIdInput.value = result.notionDatabaseId;
-            else notionDatabaseIdInput.value = '';
-            if (result.notionApiKey && result.notionDatabaseId) {
+
+            if ((notionApiKey || notionApiKeyInput.value) && (notionDatabaseId || notionDatabaseIdInput.value)) {
                 saveToNotionBtn.disabled = false;
                 if (notionKeySection.style.display !== 'block') {
                     notionSetup.style.display = 'none';
@@ -73,23 +105,29 @@ document.addEventListener('DOMContentLoaded', function () {
                 saveToNotionBtn.disabled = true;
                 notionSetup.style.display = 'block';
             }
-        });
+        } catch (error) {
+            console.error('Error loading credentials:', error);
+            showStatus('Error loading saved credentials', 'error');
+        }
     }
 
-
     // Initial load of saved credentials
-    loadSavedCredentials();
+    await loadSavedCredentials();
 
-    // Save API key
-    saveApiKeyBtn.addEventListener('click', function () {
+    // Save API key with encryption
+    saveApiKeyBtn.addEventListener('click', async function () {
         const apiKey = apiKeyInput.value.trim();
         if (apiKey) {
-            chrome.storage.local.set({ geminiApiKey: apiKey }, function () {
+            try {
+                await encryption.secureSet('geminiApiKey', apiKey);
                 apiKeySection.style.display = 'none';
                 summarySection.style.display = 'block';
-                showStatus('API key saved successfully!', 'success');
-                loadSavedCredentials(); // Reload credentials to update UI
-            });
+                showStatus('API key saved securely!', 'success');
+                await loadSavedCredentials();
+            } catch (error) {
+                console.error('Error saving API key:', error);
+                showStatus('Error saving API key', 'error');
+            }
         } else {
             showStatus('Please enter a valid API key', 'error');
         }
@@ -98,31 +136,38 @@ document.addEventListener('DOMContentLoaded', function () {
     // Setup Notion button
     setupNotionBtn.addEventListener('click', function () {
         notionKeySection.style.display = 'block';
-        // Load current values into form fields
         loadSavedCredentials();
     });
 
-    // Save Notion API Key
-    saveNotionApiKeyBtn.addEventListener('click', function () {
+    // Save Notion API Key with encryption
+    saveNotionApiKeyBtn.addEventListener('click', async function () {
         const notionApiKey = notionApiKeyInput.value.trim();
         if (notionApiKey) {
-            chrome.storage.local.set({ notionApiKey: notionApiKey }, function () {
-                showStatus('Notion API Key saved!', 'success');
-                loadSavedCredentials(); // Reload credentials to update UI
-            });
+            try {
+                await encryption.secureSet('notionApiKey', notionApiKey);
+                showStatus('Notion API Key saved securely!', 'success');
+                await loadSavedCredentials();
+            } catch (error) {
+                console.error('Error saving Notion API key:', error);
+                showStatus('Error saving Notion API key', 'error');
+            }
         } else {
             showStatus('Please enter a valid Notion API Key.', 'error');
         }
     });
 
-    // Save Notion Database ID
-    saveNotionDatabaseIdBtn.addEventListener('click', function () {
+    // Save Notion Database ID with encryption
+    saveNotionDatabaseIdBtn.addEventListener('click', async function () {
         const notionDatabaseId = notionDatabaseIdInput.value.trim();
         if (notionDatabaseId) {
-            chrome.storage.local.set({ notionDatabaseId: notionDatabaseId }, function () {
-                showStatus('Notion Database ID saved!', 'success');
-                loadSavedCredentials(); // Reload credentials to update UI
-            });
+            try {
+                await encryption.secureSet('notionDatabaseId', notionDatabaseId);
+                showStatus('Notion Database ID saved securely!', 'success');
+                await loadSavedCredentials();
+            } catch (error) {
+                console.error('Error saving Notion Database ID:', error);
+                showStatus('Error saving Notion Database ID', 'error');
+            }
         } else {
             showStatus('Please enter a valid Notion Database ID.', 'error');
         }
@@ -145,16 +190,19 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     // Save to Notion
-    saveToNotionBtn.addEventListener('click', function () {
+    saveToNotionBtn.addEventListener('click', async function () {
         saveToNotionBtn.disabled = true;
         saveToNotionBtn.textContent = 'Saving...';
 
         // Get the current tab title for the page title
-        chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+        chrome.tabs.query({ active: true, currentWindow: true }, async function (tabs) {
             const currentTab = tabs[0];
 
-            chrome.storage.local.get(['notionApiKey', 'notionDatabaseId'], function (result) {
-                if (!result.notionApiKey || !result.notionDatabaseId) {
+            try {
+                const notionApiKey = await encryption.secureGet('notionApiKey');
+                const notionDatabaseId = await encryption.secureGet('notionDatabaseId');
+
+                if (!notionApiKey || !notionDatabaseId) {
                     notionSetup.style.display = 'block';
                     saveToNotionBtn.disabled = false;
                     saveToNotionBtn.textContent = 'Save to Notion';
@@ -180,8 +228,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     content: summaryText,
                     tags: tags,
                     url: currentTab.url,
-                    notionApiKey: result.notionApiKey,
-                    notionDatabaseId: result.notionDatabaseId
+                    notionApiKey: notionApiKey,
+                    notionDatabaseId: notionDatabaseId
                 }, function (response) {
                     saveToNotionBtn.disabled = false;
                     saveToNotionBtn.textContent = 'Save to Notion';
@@ -192,17 +240,24 @@ document.addEventListener('DOMContentLoaded', function () {
                         showStatus('Error saving to Notion: ' + (response ? response.error : 'Unknown error'), 'error');
                     }
                 });
-            });
+            } catch (error) {
+                console.error('Error retrieving Notion credentials:', error);
+                saveToNotionBtn.disabled = false;
+                saveToNotionBtn.textContent = 'Save to Notion';
+                showStatus('Error retrieving Notion credentials', 'error');
+            }
         });
     });
 
-    summarizeBtn.addEventListener('click', function () {
-        chrome.storage.local.get(['geminiApiKey'], function (result) {
-            if (!result.geminiApiKey) {
+    summarizeBtn.addEventListener('click', async function () {
+        try {
+            const geminiApiKey = await encryption.secureGet('geminiApiKey');
+            
+            if (!geminiApiKey) {
                 apiKeySection.style.display = 'block';
                 summarySection.style.display = 'none';
                 weeklyRecapDisplay.classList.add('collapsed');
-                loadSavedCredentials();
+                await loadSavedCredentials();
                 return;
             }
 
@@ -232,7 +287,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         url: currentTab.url,
                         title: currentTab.title,
                         content: pageData,
-                        apiKey: result.geminiApiKey
+                        apiKey: geminiApiKey
                     }, function (response) {
                         loadingElement.style.display = 'none';
 
@@ -266,25 +321,31 @@ document.addEventListener('DOMContentLoaded', function () {
                     });
                 });
             });
-        });
+        } catch (error) {
+            console.error('Error getting API key:', error);
+            showStatus('Error retrieving API key', 'error');
+            loadingElement.style.display = 'none';
+        }
     });
 
     weeklyRecapBtn.addEventListener('click', async function () {
-        chrome.storage.local.get(['geminiApiKey', 'notionApiKey', 'notionDatabaseId'], async function (result) {
-            if (!result.notionApiKey || !result.notionDatabaseId || !result.geminiApiKey) {
+        try {
+            const geminiApiKey = await encryption.secureGet('geminiApiKey');
+            const notionApiKey = await encryption.secureGet('notionApiKey');
+            const notionDatabaseId = await encryption.secureGet('notionDatabaseId');
+
+            if (!notionApiKey || !notionDatabaseId || !geminiApiKey) {
                 showStatus('Please ensure Notion API Key, Notion Database ID, and Gemini API Key are set.', 'error');
-                if (!result.geminiApiKey) {
+                if (!geminiApiKey) {
                     apiKeySection.style.display = 'block';
                     summarySection.style.display = 'none';
-                } else if (!result.notionApiKey || !result.notionDatabaseId) {
+                } else if (!notionApiKey || !notionDatabaseId) {
                     notionSetup.style.display = 'block';
                     notionKeySection.style.display = 'block';
                 }
-                loadSavedCredentials();
+                await loadSavedCredentials();
                 return;
             }
-
-            const { notionApiKey, notionDatabaseId, geminiApiKey } = result;
 
             // Collapse sections and reset width before generating
             updatePopupSize(); // Reset to default width
@@ -294,37 +355,35 @@ document.addEventListener('DOMContentLoaded', function () {
             statusMessage.textContent = 'Fetching past week\'s summaries...';
             statusMessage.className = '';
 
-            try {
-                const pagesWithContent = await getAllPagesWithContent(notionApiKey, notionDatabaseId);
-                statusMessage.textContent = 'Generating weekly recap...';
-                const recapText = await generateWeeklyRecap(pagesWithContent, geminiApiKey);
+            const pagesWithContent = await getAllPagesWithContent(notionApiKey, notionDatabaseId);
+            statusMessage.textContent = 'Generating weekly recap...';
+            const recapText = await generateWeeklyRecap(pagesWithContent, geminiApiKey);
 
-                const formattedRecap = recapText
-                    .replace(/^# (.*$)/gm, '<h1>$1</h1>')
-                    .replace(/^## (.*$)/gm, '<h2>$1</h2>')
-                    .replace(/^### (.*$)/gm, '<h3>$1</h3>')
-                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                    .replace(/\n\n/g, '<br><br>')
-                    .replace(/\n/g, '<br>');
+            const formattedRecap = recapText
+                .replace(/^# (.*$)/gm, '<h1>$1</h1>')
+                .replace(/^## (.*$)/gm, '<h2>$1</h2>')
+                .replace(/^### (.*$)/gm, '<h3>$1</h3>')
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\n\n/g, '<br><br>')
+                .replace(/\n/g, '<br>');
 
-                navigator.clipboard.writeText(recapText).then(() => {
-                    recapCopyStatus.textContent = 'Auto-copied to clipboard!';
-                    setTimeout(() => { recapCopyStatus.textContent = ''; }, 3000);
-                }).catch(err => console.error('Auto-copy failed: ', err));
+            navigator.clipboard.writeText(recapText).then(() => {
+                recapCopyStatus.textContent = 'Auto-copied to clipboard!';
+                setTimeout(() => { recapCopyStatus.textContent = ''; }, 3000);
+            }).catch(err => console.error('Auto-copy failed: ', err));
 
-                recapContentDiv.innerHTML = formattedRecap;
-                statusMessage.textContent = '';
+            recapContentDiv.innerHTML = formattedRecap;
+            statusMessage.textContent = '';
 
-                // Expand popup width and height
-                updatePopupSize(recapText.length);
-                weeklyRecapDisplay.classList.remove('collapsed');
+            // Expand popup width and height
+            updatePopupSize(recapText.length);
+            weeklyRecapDisplay.classList.remove('collapsed');
 
-            } catch (error) {
-                showStatus('Error generating weekly recap: ' + error.message, 'error');
-            } finally {
-                loadingElement.style.display = 'none';
-            }
-        });
+        } catch (error) {
+            showStatus('Error generating weekly recap: ' + error.message, 'error');
+        } finally {
+            loadingElement.style.display = 'none';
+        }
     });
 
     function showStatus(message, type) {
