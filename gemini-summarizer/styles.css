@@ -169,7 +169,7 @@ a:hover {
 
 .summary-content-wrapper {
     /* Set a max-height that works well within the 600px popup limit */
-    max-height: 500px;
+    max-height: 280px;
     overflow-y: auto;
     border: 1px solid #eee;
     border-radius: 4px;
