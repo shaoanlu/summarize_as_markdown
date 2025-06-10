@@ -4,9 +4,9 @@ name: CI
 # Trigger the workflow on push and pull requests to main branch
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, master ]
   pull_request:
-    branches: [ main, develop ]
+    branches: [ main, master ]
 
 # Define the jobs to run
 jobs:
@@ -63,6 +63,10 @@ jobs:
     - name: Check JavaScript syntax
       run: |
         echo "Checking JavaScript files for syntax errors..."
+        
+        # Create a temporary package.json to enable ES modules
+        echo '{"type": "module"}' > gemini-summarizer/package.json
+        
         js_files=(
           "gemini-summarizer/popup.js"
           "gemini-summarizer/background.js"
@@ -73,15 +77,18 @@ jobs:
         
         for file in "${js_files[@]}"; do
           if [ -f "$file" ]; then
-            if node -c "$file" 2>/dev/null; then
+            if node --check "$file" 2>/dev/null; then
               echo "✅ $file syntax is valid"
             else
               echo "❌ $file has syntax errors"
-              node -c "$file"
+              node --check "$file"
               exit 1
             fi
           fi
         done
+        
+        # Clean up temporary package.json
+        rm -f gemini-summarizer/package.json
     
     # Validate HTML structure
     - name: Check HTML files
