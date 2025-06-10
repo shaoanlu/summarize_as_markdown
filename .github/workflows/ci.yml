@@ -1,0 +1,238 @@
+# Simple CI workflow for Chrome Extension
+name: CI
+
+# Trigger the workflow on push and pull requests to main branch
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+# Define the jobs to run
+jobs:
+  # Job to check code quality and basic validation
+  validate:
+    name: Validate Extension
+    runs-on: ubuntu-latest
+    
+    steps:
+    # Checkout the repository code
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    # Set up Node.js environment
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+    
+    # Validate manifest.json structure
+    - name: Validate manifest.json
+      run: |
+        echo "Checking manifest.json syntax..."
+        if ! cat gemini-summarizer/manifest.json | jq empty; then
+          echo "❌ manifest.json is not valid JSON"
+          exit 1
+        else
+          echo "✅ manifest.json is valid JSON"
+        fi
+    
+    # Check for required files
+    - name: Check required files
+      run: |
+        echo "Checking for required extension files..."
+        required_files=(
+          "gemini-summarizer/manifest.json"
+          "gemini-summarizer/popup.html"
+          "gemini-summarizer/popup.js"
+          "gemini-summarizer/background.js"
+          "gemini-summarizer/content.js"
+          "gemini-summarizer/styles.css"
+        )
+        
+        for file in "${required_files[@]}"; do
+          if [ -f "$file" ]; then
+            echo "✅ $file exists"
+          else
+            echo "❌ $file is missing"
+            exit 1
+          fi
+        done
+    
+    # Basic JavaScript syntax check
+    - name: Check JavaScript syntax
+      run: |
+        echo "Checking JavaScript files for syntax errors..."
+        
+        # Create a temporary package.json to enable ES modules
+        echo '{"type": "module"}' > gemini-summarizer/package.json
+        
+        js_files=(
+          "gemini-summarizer/popup.js"
+          "gemini-summarizer/background.js"
+          "gemini-summarizer/content.js"
+          "gemini-summarizer/notionUtils.js"
+          "gemini-summarizer/weeklyRecap.js"
+        )
+        
+        for file in "${js_files[@]}"; do
+          if [ -f "$file" ]; then
+            if node --check "$file" 2>/dev/null; then
+              echo "✅ $file syntax is valid"
+            else
+              echo "❌ $file has syntax errors"
+              node --check "$file"
+              exit 1
+            fi
+          fi
+        done
+        
+        # Clean up temporary package.json
+        rm -f gemini-summarizer/package.json
+    
+    # Validate HTML structure
+    - name: Check HTML files
+      run: |
+        echo "Checking HTML files..."
+        if [ -f "gemini-summarizer/popup.html" ]; then
+          # Basic HTML validation - check if it contains required elements
+          if grep -q "<html>" gemini-summarizer/popup.html && grep -q "</html>" gemini-summarizer/popup.html; then
+            echo "✅ popup.html has basic HTML structure"
+          else
+            echo "❌ popup.html is missing basic HTML structure"
+            exit 1
+          fi
+        fi
+    
+    # Check for common security issues
+    - name: Basic security check
+      run: |
+        echo "Running basic security checks..."
+        
+        # Check for hardcoded API keys (basic pattern matching)
+        if grep -r "sk-" gemini-summarizer/ --include="*.js" --include="*.json" || \
+           grep -r "AIza" gemini-summarizer/ --include="*.js" --include="*.json" || \
+           grep -r "secret_" gemini-summarizer/ --include="*.js" --include="*.json"; then
+          echo "⚠️  Warning: Potential hardcoded API keys found"
+        else
+          echo "✅ No obvious hardcoded API keys found"
+        fi
+    
+    # Generate build info
+    - name: Generate build info
+      run: |
+        echo "Generating build information..."
+        
+        # Create build info file
+        cat > build-info.json << EOF
+        {
+          "build_time": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+          "commit_sha": "${{ github.sha }}",
+          "branch": "${{ github.ref_name }}",
+          "workflow_run": "${{ github.run_number }}",
+          "actor": "${{ github.actor }}",
+          "repository": "${{ github.repository }}"
+        }
+        EOF
+        
+        echo "✅ Build info generated:"
+        cat build-info.json
+    
+    # Package extension with build artifacts
+    - name: Package extension
+      run: |
+        echo "Creating extension package with build artifacts..."
+        
+        # Create build directory
+        mkdir -p build
+        
+        # Copy extension files to build directory
+        cp -r gemini-summarizer/* build/
+        
+        # Add build info to the package
+        cp build-info.json build/
+        
+        # Create a README for the build
+        cat > build/BUILD_README.md << EOF
+        # Chrome Extension Build
+        
+        **Build Information:**
+        - Build Time: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+        - Commit: ${{ github.sha }}
+        - Branch: ${{ github.ref_name }}
+        - Workflow Run: ${{ github.run_number }}
+        - Built by: ${{ github.actor }}
+        
+        **Installation:**
+        1. Open Chrome and go to \`chrome://extensions/\`
+        2. Enable "Developer mode" (toggle in top-right)
+        3. Click "Load unpacked" and select this folder
+        
+        **Files included:**
+        - All extension source files
+        - build-info.json (build metadata)
+        - This README
+        EOF
+        
+        # Create the zip package
+        cd build
+        zip -r ../chrome-extension-v${{ github.run_number }}.zip . -x "*.git*" "node_modules/*"
+        cd ..
+        
+        echo "✅ Extension packaged successfully"
+        ls -la chrome-extension-v${{ github.run_number }}.zip
+        
+        # Also create a source-only package (without build artifacts)
+        cd gemini-summarizer
+        zip -r ../chrome-extension-source.zip . -x "*.git*" "node_modules/*"
+        cd ..
+        
+        echo "✅ Source package created"
+        ls -la chrome-extension-source.zip
+    
+    # Upload the build artifacts
+    - name: Upload extension package with build info
+      uses: actions/upload-artifact@v4
+      with:
+        name: chrome-extension-v${{ github.run_number }}
+        path: |
+          chrome-extension-v${{ github.run_number }}.zip
+          build-info.json
+        retention-days: 90
+    
+    # Upload source-only package
+    - name: Upload source package
+      uses: actions/upload-artifact@v4
+      with:
+        name: chrome-extension-source
+        path: chrome-extension-source.zip
+        retention-days: 30
+    
+    # Upload unpackaged build directory for easy testing
+    - name: Upload unpacked extension
+      uses: actions/upload-artifact@v4
+      with:
+        name: chrome-extension-unpacked
+        path: build/
+        retention-days: 30
+
+  # Optional: Additional job for running tests (if you add them later)
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    needs: validate
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+    
+    # Placeholder for future tests
+    - name: Run tests
+      run: |
+        echo "No tests configured yet, but the extension is validated!"
+        echo "You can add Jest or other testing frameworks here later."
