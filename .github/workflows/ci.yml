@@ -28,14 +28,15 @@ jobs:
           npm init -y
         fi
         
-        # Install dev dependencies
-        npm install --save-dev eslint web-ext
+        # Install ESLint v8 (last version that supports .eslintrc files) and other dev dependencies
+        npm install --save-dev eslint@^8.57.0 web-ext
         
         # Try to install chrome extension plugin, fallback if not available
         npm install --save-dev eslint-plugin-chrome-extension || echo "Chrome extension plugin not available, continuing without it"
 
     - name: Create ESLint config
       run: |
+        # Create .eslintrc.js for ESLint v8
         cat > .eslintrc.js << 'EOF'
         module.exports = {
           env: {
