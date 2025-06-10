@@ -1,80 +1,83 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
     <title>Gemini Tab Summarizer</title>
     <link rel="stylesheet" href="styles.css">
 </head>
-
 <body>
-    <div class="container">
-        <h1>Gemini Tab Summarizer</h1>
+    <div class="background-pattern"></div>
+    <div class="floating-element"></div>
+    <div class="floating-element"></div>
+    <div class="floating-element"></div>
 
-        <div id="api-key-section">
-            <label for="gemini-api-key">Gemini API Key:</label>
+    <div class="glass-container">
+        <!-- Header -->
+        <div class="header">
+            <h1>Gemini Summarizer</h1>
+            <p>Your AI Reading Assistant</p>
+        </div>
+
+        <!-- Initial API Key Setup Panel -->
+        <div id="api-key-section" class="glass-panel">
+            <div class="panel-title">Gemini API Key Setup</div>
             <input type="password" id="gemini-api-key" placeholder="Enter your Gemini API key">
-            <button id="save-api-key">Save</button>
-            <p class="info">Get your API key from <a href="https://ai.google.dev/" target="_blank">Google AI Studio</a>
-            </p>
+            <button id="save-api-key" class="liquid-button">Save Key</button>
+            <p class="info">Get your API key from <a href="https://ai.google.dev/" target="_blank">Google AI Studio</a></p>
         </div>
 
-        <div id="notion-key-section">
-            <label for="notion-api-key">Notion API Key:</label>
-            <div class="input-group">
-                <input type="password" id="notion-api-key" placeholder="Enter your Notion API key">
-                <button id="save-notion-api-key">Save</button>
-            </div>
-
-            <label for="notion-database-id">Notion Database ID:</label>
-            <div class="input-group">
-                <input type="text" id="notion-database-id" placeholder="Enter your Notion database ID">
-                <button id="save-notion-database-id">Save</button>
-            </div>
-
-            <p class="info">Get your API key from <a href="https://www.notion.so/my-integrations" target="_blank">Notion
-                    Integrations</a></p>
-        </div>
-
+        <!-- Main Actions and Content Area -->
         <div id="summary-section" style="display: none;">
-            <button id="summarize-btn">Summarize Current Tab</button>
-            <button id="weekly-recap-btn" class="secondary-btn">Generate Weekly Recap</button>
+            <!-- Action Buttons -->
+            <div class="action-buttons">
+                <button id="summarize-btn" class="liquid-button">Summarize Tab</button>
+                <button id="weekly-recap-btn" class="liquid-button secondary-btn">Weekly Recap</button>
+            </div>
+
+            <!-- Loading Spinner and Status -->
             <div id="loading" style="display: none;">
                 <div class="spinner"></div>
             </div>
             <div id="status-message"></div>
 
-            <!-- Summary display area: Replaced inline style with classes for animation -->
-            <div id="summary-display" class="collapsible collapsed">
-                <div class="summary-header">
-                    <h2>Summary</h2>
-                    <div class="copy-status" id="copy-status"></div>
-                </div>
+            <!-- Summary Display Panel -->
+            <div id="summary-display" class="glass-panel collapsible collapsed">
+                <div class="panel-title">Summary</div>
                 <div class="summary-content-wrapper">
-                    <div id="summary-content" class="summary-content"></div>
+                    <div id="summary-content" class="panel-content"></div>
                 </div>
-                <div class="button-row">
-                    <button id="copy-btn">Copy to Clipboard</button>
-                    <button id="save-to-notion-btn">Save to Notion</button>
+                 <div class="copy-status" id="copy-status"></div>
+                <div class="panel-actions">
+                    <button id="copy-btn" class="liquid-button">Copy</button>
+                    <button id="save-to-notion-btn" class="liquid-button">Save to Notion</button>
                 </div>
-                <div id="notion-setup" style="display: none;">
-                    <p>To save to Notion, you need to configure your Notion API key.</p>
-                    <button id="setup-notion-btn">Setup Notion</button>
+                <div id="notion-setup" class="info-panel" style="display: none;">
+                    <p>To save, first configure your Notion integration.</p>
+                    <button id="setup-notion-btn" class="liquid-button">Setup Notion</button>
                 </div>
             </div>
 
-            <!-- Weekly Recap display area: Replaced inline style with classes for animation -->
-            <div id="weekly-recap-display" class="collapsible collapsed">
-                <div class="summary-header">
-                    <h2>Weekly Recap</h2>
-                    <div class="recap-copy-status" id="recap-copy-status"></div>
-                </div>
+            <!-- Weekly Recap Display Panel -->
+            <div id="weekly-recap-display" class="glass-panel collapsible collapsed">
+                <div class="panel-title">Weekly Recap</div>
                 <div class="summary-content-wrapper">
-                    <div id="recap-content" class="summary-content"></div>
+                    <div id="recap-content" class="panel-content"></div>
                 </div>
+                <div class="recap-copy-status" id="recap-copy-status"></div>
+            </div>
+            
+            <!-- Notion Configuration Panel (initially hidden) -->
+            <div id="notion-key-section" class="glass-panel collapsible collapsed">
+                <div class="panel-title">Notion Integration</div>
+                <input type="password" id="notion-api-key" placeholder="Enter your Notion API key">
+                <button id="save-notion-api-key" class="liquid-button">Save</button>
+                
+                <input type="text" id="notion-database-id" placeholder="Enter your Notion database ID">
+                <button id="save-notion-database-id" class="liquid-button">Save</button>
+                <p class="info">Get keys from <a href="https://www.notion.so/my-integrations" target="_blank">Notion Integrations</a></p>
             </div>
         </div>
     </div>
     <script src="popup.js" type="module"></script>
 </body>
-
 </html>

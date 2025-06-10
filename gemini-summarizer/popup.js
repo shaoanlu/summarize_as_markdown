@@ -1,6 +1,7 @@
 import { getAllPagesWithContent, generateWeeklyRecap } from './weeklyRecap.js';
 
 document.addEventListener('DOMContentLoaded', function () {
+    // --- Element Definitions ---
     const apiKeyInput = document.getElementById('gemini-api-key');
     const saveApiKeyBtn = document.getElementById('save-api-key');
     const summarizeBtn = document.getElementById('summarize-btn');
@@ -27,91 +28,81 @@ document.addEventListener('DOMContentLoaded', function () {
 
     let currentSummary = "";
 
-    /**
-     * Dynamically adjusts the popup width based on content length for better readability.
-     * @param {number} [contentLength=0] - The length of the summary or recap text.
-     */
+    // --- Dynamic Sizing and UI Effects ---
+
     function updatePopupSize(contentLength = 0) {
         const body = document.body;
         let targetWidth;
 
         if (contentLength <= 0) {
-            targetWidth = 420; // Default/collapsed width
-        } else if (contentLength < 1200) {
-            targetWidth = 450; // Small summary
-        } else if (contentLength < 2500) {
-            targetWidth = 700; // Medium summary
+            targetWidth = 400; // Default width
+        } else if (contentLength < 1500) {
+            targetWidth = 550; // Medium summary
         } else {
-            targetWidth = 980; // Large summary, respects Chrome's max-width
+            targetWidth = 780; // Large summary
         }
         body.style.width = targetWidth + 'px';
     }
 
+    document.addEventListener('mousemove', (e) => {
+        const container = document.querySelector('.glass-container');
+        if (!container) return;
+        const rect = container.getBoundingClientRect();
+        const x = (e.clientX - rect.left) / rect.width;
+        const y = (e.clientY - rect.top) / rect.height;
+        const tiltX = (y - 0.5) * 4;
+        const tiltY = (x - 0.5) * -4;
+        container.style.transform = `perspective(1000px) rotateX(${tiltX}deg) rotateY(${tiltY}deg)`;
+    });
+
+    // --- Core Logic ---
+
     function loadSavedCredentials() {
-        // ... (this function remains unchanged)
         chrome.storage.local.get(['geminiApiKey', 'notionApiKey', 'notionDatabaseId'], function (result) {
             if (result.geminiApiKey) {
-                apiKeyInput.value = result.geminiApiKey;
                 apiKeySection.style.display = 'none';
                 summarySection.style.display = 'block';
             } else {
-                apiKeyInput.value = '';
-                apiKeySection.style.display = 'block';
+                apiKeySection.style.display = 'flex';
                 summarySection.style.display = 'none';
             }
             if (result.notionApiKey) notionApiKeyInput.value = result.notionApiKey;
-            else notionApiKeyInput.value = '';
             if (result.notionDatabaseId) notionDatabaseIdInput.value = result.notionDatabaseId;
-            else notionDatabaseIdInput.value = '';
-            if (result.notionApiKey && result.notionDatabaseId) {
-                saveToNotionBtn.disabled = false;
-                if (notionKeySection.style.display !== 'block') {
-                    notionSetup.style.display = 'none';
-                    notionKeySection.style.display = 'none';
-                }
-            } else {
-                saveToNotionBtn.disabled = true;
-                notionSetup.style.display = 'block';
-            }
+            
+            updateNotionButtonState(result.notionApiKey, result.notionDatabaseId);
         });
     }
 
+    function updateNotionButtonState(key, dbId) {
+        if (key && dbId) {
+            saveToNotionBtn.disabled = false;
+            notionSetup.style.display = 'none';
+        } else {
+            saveToNotionBtn.disabled = true;
+            notionSetup.style.display = 'flex';
+        }
+    }
 
     // Initial load of saved credentials
     loadSavedCredentials();
 
     // Save API key
-    saveApiKeyBtn.addEventListener('click', function () {
-        const apiKey = apiKeyInput.value.trim();
-        if (apiKey) {
-            chrome.storage.local.set({ geminiApiKey: apiKey }, function () {
-                apiKeySection.style.display = 'none';
-                summarySection.style.display = 'block';
-                showStatus('API key saved successfully!', 'success');
-                loadSavedCredentials(); // Reload credentials to update UI
-            });
-        } else {
-            showStatus('Please enter a valid API key', 'error');
-        }
-    });
+    saveApiKeyBtn.addEventListener('click', function () { const apiKey = apiKeyInput.value.trim(); if (apiKey) { chrome.storage.local.set({ geminiApiKey: apiKey }, () => { showStatus('API key saved!', 'success'); loadSavedCredentials(); }); }});
 
     // Setup Notion button
     setupNotionBtn.addEventListener('click', function () {
-        notionKeySection.style.display = 'block';
-        // Load current values into form fields
-        loadSavedCredentials();
+        notionKeySection.classList.toggle('collapsed');
+        loadSavedCredentials(); // Re-populate fields
     });
 
     // Save Notion API Key
     saveNotionApiKeyBtn.addEventListener('click', function () {
         const notionApiKey = notionApiKeyInput.value.trim();
         if (notionApiKey) {
-            chrome.storage.local.set({ notionApiKey: notionApiKey }, function () {
+            chrome.storage.local.set({ notionApiKey: notionApiKey }, () => {
                 showStatus('Notion API Key saved!', 'success');
-                loadSavedCredentials(); // Reload credentials to update UI
+                chrome.storage.local.get(['notionDatabaseId'], (res) => updateNotionButtonState(notionApiKey, res.notionDatabaseId));
             });
-        } else {
-            showStatus('Please enter a valid Notion API Key.', 'error');
         }
     });
 
@@ -119,30 +110,15 @@ document.addEventListener('DOMContentLoaded', function () {
     saveNotionDatabaseIdBtn.addEventListener('click', function () {
         const notionDatabaseId = notionDatabaseIdInput.value.trim();
         if (notionDatabaseId) {
-            chrome.storage.local.set({ notionDatabaseId: notionDatabaseId }, function () {
+            chrome.storage.local.set({ notionDatabaseId: notionDatabaseId }, () => {
                 showStatus('Notion Database ID saved!', 'success');
-                loadSavedCredentials(); // Reload credentials to update UI
+                chrome.storage.local.get(['notionApiKey'], (res) => updateNotionButtonState(res.notionApiKey, notionDatabaseId));
             });
-        } else {
-            showStatus('Please enter a valid Notion Database ID.', 'error');
         }
     });
 
     // Copy to clipboard
-    copyBtn.addEventListener('click', function () {
-        const text = summaryContent.textContent;
-        navigator.clipboard.writeText(text)
-            .then(() => {
-                copyStatus.textContent = 'Copied!';
-                setTimeout(() => {
-                    copyStatus.textContent = '';
-                }, 2000);
-            })
-            .catch(err => {
-                copyStatus.textContent = 'Failed to copy';
-                console.error('Copy failed: ', err);
-            });
-    });
+    copyBtn.addEventListener('click', function () { navigator.clipboard.writeText(currentSummary).then(() => { copyStatus.textContent = 'Copied!'; setTimeout(() => copyStatus.textContent = '', 2000); }); });
 
     // Save to Notion
     saveToNotionBtn.addEventListener('click', function () {
@@ -199,69 +175,35 @@ document.addEventListener('DOMContentLoaded', function () {
     summarizeBtn.addEventListener('click', function () {
         chrome.storage.local.get(['geminiApiKey'], function (result) {
             if (!result.geminiApiKey) {
-                apiKeySection.style.display = 'block';
-                summarySection.style.display = 'none';
-                weeklyRecapDisplay.classList.add('collapsed');
-                loadSavedCredentials();
-                return;
+                loadSavedCredentials(); return;
             }
-
-            // Collapse sections and reset width before generating
-            updatePopupSize(); // Reset to default width
+            updatePopupSize();
             summaryDisplay.classList.add('collapsed');
             weeklyRecapDisplay.classList.add('collapsed');
+            notionKeySection.classList.add('collapsed');
             loadingElement.style.display = 'block';
-            statusMessage.textContent = 'Generating summary...';
-            statusMessage.className = '';
+            statusMessage.textContent = '';
 
             chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-                const currentTab = tabs[0];
-                chrome.scripting.executeScript({
-                    target: { tabId: currentTab.id },
-                    function: extractPageContent
-                }, function (results) {
-                    if (chrome.runtime.lastError) {
-                        showStatus('Error accessing page content: ' + chrome.runtime.lastError.message, 'error');
-                        loadingElement.style.display = 'none';
-                        return;
+                chrome.scripting.executeScript({ target: { tabId: tabs[0].id }, function: extractPageContent }, 
+                (results) => {
+                    if (chrome.runtime.lastError || !results || !results[0]) {
+                        showStatus('Error accessing page content.', 'error'); loadingElement.style.display = 'none'; return;
                     }
-
-                    const pageData = results[0].result;
-                    chrome.runtime.sendMessage({
-                        action: 'summarize',
-                        url: currentTab.url,
-                        title: currentTab.title,
-                        content: pageData,
-                        apiKey: result.geminiApiKey
-                    }, function (response) {
+                    chrome.runtime.sendMessage({ action: 'summarize', url: tabs[0].url, title: tabs[0].title, content: results[0].result, apiKey: result.geminiApiKey }, 
+                    (response) => {
                         loadingElement.style.display = 'none';
-
                         if (response.success && response.summaryText) {
                             currentSummary = response.summaryText;
-                            loadSavedCredentials();
-
-                            const formattedText = response.summaryText
-                                .replace(/^# (.*$)/gm, '<h1>$1</h1>')
-                                .replace(/^## (.*$)/gm, '<h2>$1</h2>')
-                                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                                .replace(/^\* (.*$)/gm, '<li>$1</li>')
-                                .replace(/^(?:\*|\-)\s/gm, '<ul><li>')
-                                .replace(/<\/li>\n/g, '</li></ul>\n<ul>')
-                                .replace(/\n\n/g, '<br><br>');
-
-                            summaryContent.innerHTML = formattedText;
-                            statusMessage.textContent = '';
-
-                            // Expand popup width and height
+                            summaryContent.innerHTML = formatMarkdown(response.summaryText);
                             updatePopupSize(response.summaryText.length);
                             summaryDisplay.classList.remove('collapsed');
-
                             navigator.clipboard.writeText(response.summaryText).then(() => {
-                                copyStatus.textContent = 'Auto-copied to clipboard!';
+                                copyStatus.textContent = 'Auto-copied!';
                                 setTimeout(() => { copyStatus.textContent = ''; }, 3000);
-                            }).catch(err => console.error('Auto-copy failed: ', err));
+                            });
                         } else {
-                            showStatus('Error: ' + (response ? response.error : "Unknown error"), 'error');
+                            showStatus('Error: ' + response.error, 'error');
                         }
                     });
                 });
@@ -272,57 +214,31 @@ document.addEventListener('DOMContentLoaded', function () {
     weeklyRecapBtn.addEventListener('click', async function () {
         chrome.storage.local.get(['geminiApiKey', 'notionApiKey', 'notionDatabaseId'], async function (result) {
             if (!result.notionApiKey || !result.notionDatabaseId || !result.geminiApiKey) {
-                showStatus('Please ensure Notion API Key, Notion Database ID, and Gemini API Key are set.', 'error');
-                if (!result.geminiApiKey) {
-                    apiKeySection.style.display = 'block';
-                    summarySection.style.display = 'none';
-                } else if (!result.notionApiKey || !result.notionDatabaseId) {
-                    notionSetup.style.display = 'block';
-                    notionKeySection.style.display = 'block';
-                }
-                loadSavedCredentials();
-                return;
+                showStatus('Please configure Gemini and Notion keys first.', 'error');
+                notionKeySection.classList.remove('collapsed'); return;
             }
-
-            const { notionApiKey, notionDatabaseId, geminiApiKey } = result;
-
-            // Collapse sections and reset width before generating
-            updatePopupSize(); // Reset to default width
+            updatePopupSize();
             summaryDisplay.classList.add('collapsed');
             weeklyRecapDisplay.classList.add('collapsed');
+            notionKeySection.classList.add('collapsed');
             loadingElement.style.display = 'block';
-            statusMessage.textContent = 'Fetching past week\'s summaries...';
-            statusMessage.className = '';
+            statusMessage.textContent = 'Generating weekly recap...';
 
             try {
-                const pagesWithContent = await getAllPagesWithContent(notionApiKey, notionDatabaseId);
-                statusMessage.textContent = 'Generating weekly recap...';
-                const recapText = await generateWeeklyRecap(pagesWithContent, geminiApiKey);
-
-                const formattedRecap = recapText
-                    .replace(/^# (.*$)/gm, '<h1>$1</h1>')
-                    .replace(/^## (.*$)/gm, '<h2>$1</h2>')
-                    .replace(/^### (.*$)/gm, '<h3>$1</h3>')
-                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                    .replace(/\n\n/g, '<br><br>')
-                    .replace(/\n/g, '<br>');
-
-                navigator.clipboard.writeText(recapText).then(() => {
-                    recapCopyStatus.textContent = 'Auto-copied to clipboard!';
-                    setTimeout(() => { recapCopyStatus.textContent = ''; }, 3000);
-                }).catch(err => console.error('Auto-copy failed: ', err));
-
-                recapContentDiv.innerHTML = formattedRecap;
-                statusMessage.textContent = '';
-
-                // Expand popup width and height
+                const pages = await getAllPagesWithContent(result.notionApiKey, result.notionDatabaseId);
+                const recapText = await generateWeeklyRecap(pages, result.geminiApiKey);
+                recapContentDiv.innerHTML = formatMarkdown(recapText);
                 updatePopupSize(recapText.length);
                 weeklyRecapDisplay.classList.remove('collapsed');
-
+                navigator.clipboard.writeText(recapText).then(() => {
+                    recapCopyStatus.textContent = 'Auto-copied!';
+                    setTimeout(() => { recapCopyStatus.textContent = ''; }, 3000);
+                });
             } catch (error) {
-                showStatus('Error generating weekly recap: ' + error.message, 'error');
+                showStatus('Error: ' + error.message, 'error');
             } finally {
                 loadingElement.style.display = 'none';
+                statusMessage.textContent = '';
             }
         });
     });
@@ -330,6 +246,17 @@ document.addEventListener('DOMContentLoaded', function () {
     function showStatus(message, type) {
         statusMessage.textContent = message;
         statusMessage.className = type;
+        setTimeout(() => { statusMessage.textContent = ''; statusMessage.className = ''; }, 4000);
+    }
+    
+    function formatMarkdown(text) {
+        return text
+            .replace(/^# (.*$)/gm, '<h1>$1</h1>')
+            .replace(/^## (.*$)/gm, '<h2>$1</h2>')
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/^\* (.*$)/gm, '<li>$1</li>')
+            .replace(/<\/li><li>/g, '</li><li>') // Basic list correction
+            .replace(/\n/g, '<br>');
     }
 
 });
