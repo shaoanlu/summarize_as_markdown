@@ -37,15 +37,14 @@
 
         <div id="summary-section" style="display: none;">
             <button id="summarize-btn">Summarize Current Tab</button>
-            <!-- New button for Weekly Recap -->
             <button id="weekly-recap-btn" class="secondary-btn">Generate Weekly Recap</button>
             <div id="loading" style="display: none;">
                 <div class="spinner"></div>
             </div>
             <div id="status-message"></div>
 
-            <!-- Summary display area -->
-            <div id="summary-display" style="display: none;">
+            <!-- Summary display area: Replaced inline style with classes for animation -->
+            <div id="summary-display" class="collapsible collapsed">
                 <div class="summary-header">
                     <h2>Summary</h2>
                     <div class="copy-status" id="copy-status"></div>
@@ -63,8 +62,8 @@
                 </div>
             </div>
 
-            <!-- Weekly Recap display area -->
-            <div id="weekly-recap-display" style="display: none;">
+            <!-- Weekly Recap display area: Replaced inline style with classes for animation -->
+            <div id="weekly-recap-display" class="collapsible collapsed">
                 <div class="summary-header">
                     <h2>Weekly Recap</h2>
                     <div class="recap-copy-status" id="recap-copy-status"></div>
