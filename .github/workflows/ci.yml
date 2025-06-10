@@ -29,44 +29,37 @@ jobs:
         fi
         
         # Install dev dependencies
-        npm install --save-dev eslint @eslint/js web-ext
+        npm install --save-dev eslint web-ext
         
         # Try to install chrome extension plugin, fallback if not available
         npm install --save-dev eslint-plugin-chrome-extension || echo "Chrome extension plugin not available, continuing without it"
 
     - name: Create ESLint config
       run: |
-        cat > eslint.config.js << 'EOF'
-        import js from '@eslint/js';
-
-        export default [
-          js.configs.recommended,
-          {
-            files: ['gemini-summarizer/**/*.js'],
-            languageOptions: {
-              ecmaVersion: 2022,
-              sourceType: 'module',
-              globals: {
-                chrome: 'readonly',
-                document: 'readonly',
-                window: 'readonly',
-                fetch: 'readonly',
-                console: 'readonly',
-                navigator: 'readonly',
-                setTimeout: 'readonly',
-                URL: 'readonly'
-              }
-            },
-            rules: {
-              'no-unused-vars': ['error', { 'argsIgnorePattern': '^_' }],
-              'no-console': 'warn',
-              'prefer-const': 'error',
-              'no-var': 'error',
-              'semi': ['error', 'always'],
-              'quotes': ['error', 'single', { 'allowTemplateLiterals': true }]
-            }
+        cat > .eslintrc.js << 'EOF'
+        module.exports = {
+          env: {
+            browser: true,
+            es2021: true,
+            webextensions: true
+          },
+          extends: ['eslint:recommended'],
+          parserOptions: {
+            ecmaVersion: 2022,
+            sourceType: 'module'
+          },
+          globals: {
+            chrome: 'readonly'
+          },
+          rules: {
+            'no-unused-vars': ['error', { 'argsIgnorePattern': '^_' }],
+            'no-console': 'warn',
+            'prefer-const': 'error',
+            'no-var': 'error',
+            'semi': ['error', 'always'],
+            'quotes': ['error', 'single', { 'allowTemplateLiterals': true }]
           }
-        ];
+        };
         EOF
 
     - name: Run ESLint
