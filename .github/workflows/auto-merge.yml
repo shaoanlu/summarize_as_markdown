@@ -1,0 +1,241 @@
+# Auto-merge workflow for dependency updates and minor changes
+name: Auto-merge
+
+on:
+  pull_request:
+    branches: [ main ]
+    types: [ opened, synchronize, reopened ]
+
+permissions:
+  contents: write
+  pull-requests: write
+  checks: read
+
+jobs:
+  auto-merge:
+    name: Auto-merge eligible PRs
+    runs-on: ubuntu-latest
+    if: |
+      github.event.pull_request.draft == false &&
+      (
+        github.actor == 'dependabot[bot]' ||
+        (
+          github.actor == 'shaoanlu' && 
+          contains(github.event.pull_request.title, 'chore:')
+        )
+      )
+    
+    steps:
+    - name: Check PR conditions
+      id: check-conditions
+      run: |
+        echo "🔍 Checking auto-merge conditions..."
+        
+        PR_TITLE="${{ github.event.pull_request.title }}"
+        PR_AUTHOR="${{ github.actor }}"
+        PR_SIZE="${{ github.event.pull_request.additions }}"
+        
+        echo "PR Title: $PR_TITLE"
+        echo "PR Author: $PR_AUTHOR"
+        echo "PR Size: $PR_SIZE additions"
+        
+        # Initialize auto-merge eligibility
+        AUTO_MERGE_ELIGIBLE=false
+        REASON=""
+        
+        # Check for dependabot PRs
+        if [ "$PR_AUTHOR" = "dependabot[bot]" ]; then
+          # Only allow minor and patch updates
+          if echo "$PR_TITLE" | grep -qE "(bump|update).*from.*to.*[0-9]+\.[0-9]+\.[0-9]+"; then
+            # Check if it's a major version update (x.0.0)
+            if echo "$PR_TITLE" | grep -qE "to [0-9]+\.0\.0"; then
+              REASON="Major version update requires manual review"
+            else
+              AUTO_MERGE_ELIGIBLE=true
+              REASON="Dependabot minor/patch update"
+            fi
+          else
+            REASON="Non-standard dependabot update"
+          fi
+        fi
+        
+        # Check for owner chore PRs
+        if [ "$PR_AUTHOR" = "shaoanlu" ] && echo "$PR_TITLE" | grep -q "chore:"; then
+          # Only small chore PRs
+          if [ "$PR_SIZE" -lt 100 ]; then
+            AUTO_MERGE_ELIGIBLE=true
+            REASON="Small chore PR by owner"
+          else
+            REASON="Chore PR too large for auto-merge"
+          fi
+        fi
+        
+        echo "auto_merge_eligible=$AUTO_MERGE_ELIGIBLE" >> $GITHUB_OUTPUT
+        echo "reason=$REASON" >> $GITHUB_OUTPUT
+        
+        echo "📋 Auto-merge decision: $AUTO_MERGE_ELIGIBLE"
+        echo "📝 Reason: $REASON"
+    
+    - name: Wait for checks to complete
+      if: steps.check-conditions.outputs.auto_merge_eligible == 'true'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const { owner, repo } = context.repo;
+          const { number } = context.payload.pull_request;
+          
+          console.log('⏳ Waiting for checks to complete...');
+          
+          // Wait up to 10 minutes for checks
+          const maxWaitTime = 10 * 60 * 1000; // 10 minutes
+          const checkInterval = 30 * 1000; // 30 seconds
+          const startTime = Date.now();
+          
+          while (Date.now() - startTime < maxWaitTime) {
+            const { data: pr } = await github.rest.pulls.get({
+              owner,
+              repo,
+              pull_number: number
+            });
+            
+            const { data: checks } = await github.rest.checks.listForRef({
+              owner,
+              repo,
+              ref: pr.head.sha
+            });
+            
+            const { data: statuses } = await github.rest.repos.listCommitStatusesForRef({
+              owner,
+              repo,
+              ref: pr.head.sha
+            });
+            
+            const allChecks = [...checks.check_runs, ...statuses];
+            const pendingChecks = allChecks.filter(check => 
+              check.status === 'pending' || check.status === 'queued' || check.state === 'pending'
+            );
+            
+            if (pendingChecks.length === 0) {
+              console.log('✅ All checks completed');
+              break;
+            }
+            
+            console.log(`⏳ ${pendingChecks.length} checks still pending...`);
+            await new Promise(resolve => setTimeout(resolve, checkInterval));
+          }
+    
+    - name: Check if all checks passed
+      if: steps.check-conditions.outputs.auto_merge_eligible == 'true'
+      id: check-status
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const { owner, repo } = context.repo;
+          const { number } = context.payload.pull_request;
+          
+          const { data: pr } = await github.rest.pulls.get({
+            owner,
+            repo,
+            pull_number: number
+          });
+          
+          // Check if PR is mergeable
+          if (pr.mergeable === false) {
+            console.log('❌ PR has merge conflicts');
+            core.setOutput('can_merge', 'false');
+            core.setOutput('reason', 'PR has merge conflicts');
+            return;
+          }
+          
+          // Get all checks and statuses
+          const { data: checks } = await github.rest.checks.listForRef({
+            owner,
+            repo,
+            ref: pr.head.sha
+          });
+          
+          const { data: statuses } = await github.rest.repos.listCommitStatusesForRef({
+            owner,
+            repo,
+            ref: pr.head.sha
+          });
+          
+          // Check if all checks passed
+          const failedChecks = checks.check_runs.filter(check => 
+            check.conclusion === 'failure' || check.conclusion === 'cancelled'
+          );
+          
+          const failedStatuses = statuses.filter(status => 
+            status.state === 'failure' || status.state === 'error'
+          );
+          
+          if (failedChecks.length > 0 || failedStatuses.length > 0) {
+            console.log('❌ Some checks failed');
+            core.setOutput('can_merge', 'false');
+            core.setOutput('reason', 'Some checks failed');
+            return;
+          }
+          
+          console.log('✅ All checks passed');
+          core.setOutput('can_merge', 'true');
+          core.setOutput('reason', 'All checks passed');
+    
+    - name: Auto-merge PR
+      if: |
+        steps.check-conditions.outputs.auto_merge_eligible == 'true' &&
+        steps.check-status.outputs.can_merge == 'true'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const { owner, repo } = context.repo;
+          const { number } = context.payload.pull_request;
+          
+          console.log('🚀 Auto-merging PR...');
+          
+          try {
+            await github.rest.pulls.merge({
+              owner,
+              repo,
+              pull_number: number,
+              merge_method: 'squash',
+              commit_title: `Auto-merge: ${{ github.event.pull_request.title }}`,
+              commit_message: `Auto-merged by GitHub Actions\n\nReason: ${{ steps.check-conditions.outputs.reason }}\n\nPR: #${number}`
+            });
+            
+            console.log('✅ PR auto-merged successfully');
+            
+            // Add a comment to explain the auto-merge
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: number,
+              body: `🤖 **Auto-merged**\n\nThis PR was automatically merged because:\n- ${{ steps.check-conditions.outputs.reason }}\n- All checks passed\n- No merge conflicts detected\n\nThank you for the contribution! 🎉`
+            });
+            
+          } catch (error) {
+            console.log('❌ Auto-merge failed:', error.message);
+            
+            // Add a comment about the failure
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: number,
+              body: `🤖 **Auto-merge attempted but failed**\n\nReason: ${error.message}\n\nPlease merge manually if appropriate.`
+            });
+          }
+    
+    - name: Report auto-merge decision
+      if: always()
+      run: |
+        echo "📊 Auto-merge Report:"
+        echo "   Eligible: ${{ steps.check-conditions.outputs.auto_merge_eligible }}"
+        echo "   Can merge: ${{ steps.check-status.outputs.can_merge }}"
+        echo "   Reason: ${{ steps.check-conditions.outputs.reason }}"
+        
+        if [ "${{ steps.check-conditions.outputs.auto_merge_eligible }}" = "false" ]; then
+          echo "ℹ️ PR not eligible for auto-merge: ${{ steps.check-conditions.outputs.reason }}"
+        elif [ "${{ steps.check-status.outputs.can_merge }}" = "false" ]; then
+          echo "⚠️ PR eligible but cannot merge: ${{ steps.check-status.outputs.reason }}"
+        else
+          echo "✅ Auto-merge completed successfully"
+        fi

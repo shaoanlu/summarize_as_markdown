@@ -1,0 +1,296 @@
+# Additional PR-specific validation workflow
+name: PR Validation
+
+# This workflow runs additional checks specifically for pull requests
+on:
+  pull_request:
+    branches: [ main ]
+    types: [ opened, synchronize, reopened, ready_for_review ]
+
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+
+jobs:
+  pr-metadata-check:
+    name: PR Metadata Validation
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Validate PR title format
+      run: |
+        echo "🔍 Validating PR title format..."
+        PR_TITLE="${{ github.event.pull_request.title }}"
+        
+        # Check for conventional commit format (optional but recommended)
+        if echo "$PR_TITLE" | grep -qE "^(feat|fix|docs|style|refactor|test|chore)(\(.+\))?: .+"; then
+          echo "✅ PR title follows conventional commit format: $PR_TITLE"
+        else
+          echo "ℹ️ PR title: $PR_TITLE"
+          echo "💡 Consider using conventional commit format: type(scope): description"
+          echo "   Examples: feat: add new summarization feature"
+          echo "            fix: resolve API timeout issues"
+          echo "            docs: update installation instructions"
+        fi
+        
+        # Check title length
+        if [ ${#PR_TITLE} -gt 72 ]; then
+          echo "⚠️ PR title is quite long (${#PR_TITLE} chars). Consider shortening it."
+        fi
+    
+    - name: Check PR description
+      run: |
+        echo "🔍 Checking PR description..."
+        PR_BODY="${{ github.event.pull_request.body }}"
+        
+        if [ -z "$PR_BODY" ] || [ "$PR_BODY" = "null" ]; then
+          echo "❌ PR description is empty!"
+          echo "📝 Please add a description explaining:"
+          echo "   - What changes were made"
+          echo "   - Why these changes were necessary"
+          echo "   - How to test the changes"
+          exit 1
+        fi
+        
+        # Check for common PR description elements
+        if echo "$PR_BODY" | grep -qi "## \|### \|what\|why\|how\|test"; then
+          echo "✅ PR description appears to be well-structured"
+        else
+          echo "💡 Consider adding sections like:"
+          echo "   ## What Changed"
+          echo "   ## Why"
+          echo "   ## How to Test"
+        fi
+    
+    - name: Check for changelog updates
+      run: |
+        echo "🔍 Checking if changelog should be updated..."
+        
+        # Get list of changed files
+        CHANGED_FILES=$(git diff --name-only origin/main..HEAD)
+        
+        # Check if any significant files were changed
+        SIGNIFICANT_CHANGES=false
+        
+        # Check for code changes
+        if echo "$CHANGED_FILES" | grep -qE "\.(js|json|html|css)$"; then
+          SIGNIFICANT_CHANGES=true
+        fi
+        
+        # Check for manifest changes
+        if echo "$CHANGED_FILES" | grep -q "manifest.json"; then
+          SIGNIFICANT_CHANGES=true
+        fi
+        
+        if [ "$SIGNIFICANT_CHANGES" = "true" ]; then
+          if echo "$CHANGED_FILES" | grep -q "CHANGELOG\|changelog\|HISTORY"; then
+            echo "✅ Changelog appears to be updated"
+          else
+            echo "💡 Consider updating the changelog for these significant changes"
+            echo "📋 Changed files:"
+            echo "$CHANGED_FILES" | head -10
+          fi
+        else
+          echo "ℹ️ No significant code changes detected"
+        fi
+
+  size-check:
+    name: PR Size Check
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Check PR size
+      run: |
+        echo "📏 Analyzing PR size..."
+        
+        # Count changes
+        ADDITIONS=$(git diff --shortstat origin/main..HEAD | grep -oE '[0-9]+ insertions?' | grep -oE '[0-9]+' || echo "0")
+        DELETIONS=$(git diff --shortstat origin/main..HEAD | grep -oE '[0-9]+ deletions?' | grep -oE '[0-9]+' || echo "0")
+        FILES_CHANGED=$(git diff --name-only origin/main..HEAD | wc -l)
+        
+        echo "📊 PR Statistics:"
+        echo "   Files changed: $FILES_CHANGED"
+        echo "   Lines added: $ADDITIONS"
+        echo "   Lines deleted: $DELETIONS"
+        
+        TOTAL_CHANGES=$((ADDITIONS + DELETIONS))
+        
+        # Provide feedback based on size
+        if [ "$TOTAL_CHANGES" -gt 1000 ]; then
+          echo "🔴 Large PR detected ($TOTAL_CHANGES lines changed)"
+          echo "💡 Consider breaking this into smaller PRs for easier review"
+        elif [ "$TOTAL_CHANGES" -gt 500 ]; then
+          echo "🟡 Medium-sized PR ($TOTAL_CHANGES lines changed)"
+          echo "💡 Ensure the PR description explains the scope of changes"
+        else
+          echo "🟢 Reasonably sized PR ($TOTAL_CHANGES lines changed)"
+        fi
+        
+        if [ "$FILES_CHANGED" -gt 20 ]; then
+          echo "⚠️ Many files changed ($FILES_CHANGED files)"
+          echo "💡 Consider if all changes belong in a single PR"
+        fi
+
+  conflict-check:
+    name: Merge Conflict Check
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Check for merge conflicts
+      run: |
+        echo "🔍 Checking for potential merge conflicts..."
+        
+        # Fetch latest main branch
+        git fetch origin main
+        
+        # Check if PR branch can be merged cleanly
+        if git merge-tree $(git merge-base HEAD origin/main) HEAD origin/main | grep -q "<<<<<<< "; then
+          echo "❌ Merge conflicts detected!"
+          echo "🔧 Please resolve conflicts by:"
+          echo "   1. git fetch origin main"
+          echo "   2. git merge origin/main"
+          echo "   3. Resolve conflicts"
+          echo "   4. git commit and push"
+          exit 1
+        else
+          echo "✅ No merge conflicts detected"
+        fi
+    
+    - name: Check for file conflicts
+      run: |
+        echo "🔍 Checking for potential file conflicts..."
+        
+        # Get files changed in PR
+        PR_FILES=$(git diff --name-only origin/main..HEAD)
+        
+        # Get recent changes to main (last 10 commits)
+        RECENT_MAIN_FILES=$(git diff --name-only HEAD~10..origin/main)
+        
+        # Find overlapping files
+        OVERLAPPING_FILES=""
+        for file in $PR_FILES; do
+          if echo "$RECENT_MAIN_FILES" | grep -q "^$file$"; then
+            OVERLAPPING_FILES="$OVERLAPPING_FILES $file"
+          fi
+        done
+        
+        if [ -n "$OVERLAPPING_FILES" ]; then
+          echo "⚠️ Files modified in both PR and recent main changes:"
+          echo "$OVERLAPPING_FILES"
+          echo "💡 Extra care needed during merge - review carefully"
+        else
+          echo "✅ No overlapping file modifications detected"
+        fi
+
+  dependency-check:
+    name: Dependency Security Check
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: Check for package.json changes
+      run: |
+        echo "🔍 Checking for dependency changes..."
+        
+        if git diff --name-only origin/main..HEAD | grep -q "package.json"; then
+          echo "📦 package.json was modified"
+          
+          # Show dependency changes
+          echo "🔄 Dependency changes:"
+          git diff origin/main..HEAD -- package.json | grep -E "^\+.*\".*\":" | head -10 || echo "No new dependencies"
+          git diff origin/main..HEAD -- package.json | grep -E "^\-.*\".*\":" | head -10 || echo "No removed dependencies"
+          
+          # Install dependencies for security check
+          npm install
+          
+          # Run security audit
+          echo "🔐 Running security audit..."
+          if npm audit --audit-level=moderate; then
+            echo "✅ No security vulnerabilities found"
+          else
+            echo "⚠️ Security vulnerabilities detected - please review"
+          fi
+        else
+          echo "ℹ️ No dependency changes detected"
+        fi
+
+  performance-check:
+    name: Performance Impact Check
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Check for performance-sensitive changes
+      run: |
+        echo "⚡ Checking for performance-sensitive changes..."
+        
+        # Check for changes in critical files
+        CRITICAL_FILES="background.js popup.js services/apiService.js"
+        PERFORMANCE_IMPACT=false
+        
+        for file in $CRITICAL_FILES; do
+          if git diff --name-only origin/main..HEAD | grep -q "$file"; then
+            echo "⚠️ Performance-critical file modified: $file"
+            PERFORMANCE_IMPACT=true
+            
+            # Check for specific performance patterns
+            if git diff origin/main..HEAD -- "gemini-summarizer/$file" | grep -qE "\+.*setInterval|\+.*setTimeout|\+.*while.*true|\+.*for.*;;"; then
+              echo "🔴 Potential performance concern in $file - review loops/timers"
+            fi
+          fi
+        done
+        
+        if [ "$PERFORMANCE_IMPACT" = "true" ]; then
+          echo "💡 Performance-sensitive files were modified"
+          echo "🧪 Please ensure to test:"
+          echo "   - Extension load time"
+          echo "   - Memory usage"
+          echo "   - API response times"
+        else
+          echo "✅ No performance-critical files modified"
+        fi
+    
+    - name: Check bundle size impact
+      run: |
+        echo "📦 Estimating bundle size impact..."
+        
+        # Get current total size
+        CURRENT_SIZE=$(find gemini-summarizer -name "*.js" -exec wc -c {} + | tail -1 | awk '{print $1}')
+        
+        echo "📊 Current JavaScript bundle size: $CURRENT_SIZE bytes"
+        
+        if [ "$CURRENT_SIZE" -gt 500000 ]; then  # 500KB
+          echo "⚠️ Large bundle size detected"
+          echo "💡 Consider code splitting or removing unused code"
+        else
+          echo "✅ Bundle size looks reasonable"
+        fi

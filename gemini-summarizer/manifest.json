@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "Gemini Tab Summarizer",
-    "version": "1.0",
+    "version": "2.0",
     "description": "Summarize current webpage or PDF using Gemini AI",
     "permissions": [
         "activeTab",

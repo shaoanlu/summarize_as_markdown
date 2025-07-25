@@ -1,0 +1,27 @@
+# Code owners for the Gemini Tab Summarizer Chrome Extension
+# This file defines who should be automatically requested for review
+# when changes are made to specific files or directories.
+
+# Global owners - will be requested for all changes
+* @shaoanlu
+
+# Critical extension files - require extra review
+gemini-summarizer/manifest.json @shaoanlu
+gemini-summarizer/background.js @shaoanlu
+gemini-summarizer/popup.js @shaoanlu
+
+# Security-sensitive files
+gemini-summarizer/services/ @shaoanlu
+gemini-summarizer/utils/validation.js @shaoanlu
+
+# Configuration files
+gemini-summarizer/config.js @shaoanlu
+package.json @shaoanlu
+
+# GitHub Actions workflows
+.github/workflows/ @shaoanlu
+.github/ @shaoanlu
+
+# Documentation
+README.md @shaoanlu
+*.md @shaoanlu

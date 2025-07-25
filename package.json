@@ -1,0 +1,65 @@
+{
+  "name": "gemini-tab-summarizer",
+  "version": "2.0.0",
+  "description": "Chrome extension for summarizing web pages using Gemini AI with Notion integration",
+  "type": "module",
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "lint": "eslint gemini-summarizer/**/*.js",
+    "lint:fix": "eslint gemini-summarizer/**/*.js --fix",
+    "validate": "node scripts/validate-extension.js",
+    "build": "node scripts/build-extension.js",
+    "zip": "node scripts/create-zip.js"
+  },
+  "keywords": [
+    "chrome-extension",
+    "gemini-ai",
+    "notion",
+    "summarization",
+    "productivity"
+  ],
+  "author": "shaoanlu",
+  "license": "MIT",
+  "devDependencies": {
+    "@jest/globals": "^29.7.0",
+    "eslint": "^8.57.0",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0",
+    "jest-chrome": "^0.8.0"
+  },
+  "jest": {
+    "testEnvironment": "jsdom",
+    "setupFilesAfterEnv": ["<rootDir>/tests/setup.js"],
+    "moduleFileExtensions": ["js", "json"],
+    "testMatch": [
+      "<rootDir>/tests/**/*.test.js"
+    ],
+    "collectCoverageFrom": [
+      "gemini-summarizer/**/*.js",
+      "!gemini-summarizer/images/**",
+      "!**/node_modules/**"
+    ],
+    "coverageDirectory": "coverage",
+    "coverageReporters": ["text", "lcov", "html"]
+  },
+  "eslintConfig": {
+    "env": {
+      "browser": true,
+      "es2022": true,
+      "webextensions": true,
+      "jest": true
+    },
+    "parserOptions": {
+      "ecmaVersion": 2022,
+      "sourceType": "module"
+    },
+    "rules": {
+      "no-unused-vars": "warn",
+      "no-console": "off",
+      "prefer-const": "error",
+      "no-var": "error"
+    }
+  }
+}
