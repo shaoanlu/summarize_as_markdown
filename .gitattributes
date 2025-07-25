@@ -1,0 +1,38 @@
+# Ensure consistent line endings across all platforms
+# All text files should use LF line endings
+
+# Set default behavior for all files
+* text=auto eol=lf
+
+# Explicitly define text files
+*.js text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.html text eol=lf
+*.css text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.txt text eol=lf
+*.xml text eol=lf
+
+# Binary files should not be modified
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.zip binary
+*.tar binary
+*.gz binary
+*.pdf binary
+
+# Shell scripts should use LF
+*.sh text eol=lf
+
+# Windows batch files should use CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Treat certain files as binary to prevent git from modifying them
+node_modules/** binary
+.git/** binary
