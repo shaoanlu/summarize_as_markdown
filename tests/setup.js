@@ -1,5 +1,3 @@
-import 'jest-chrome';
-
 // Mock Chrome Extension APIs
 global.chrome = {
   runtime: {
